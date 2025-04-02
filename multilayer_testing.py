@@ -25,22 +25,23 @@ PORT = 50000
 IP_ADDRESS_1 = 0
 IP_ADDRESS_2 = 1
 PALLET_WIDTH = 2
-PALLET_HEIGHT = 3
+PALLET_LENGTH = 3
 PALLET_UPDATE = 4
 
 BOX_WIDTH = 5
-BOX_HEIGHT = 6
-ADD_DELETE_BOX_ROW = 7
-ROTATE_BOX = 8
+BOX_LENGTH = 6
+BOX_HEIGHT = 7
+ADD_DELETE_BOX_ROW = 8
+ROTATE_BOX = 9
 
-JOG_DISTANCE = 9
-JOG_UP_RIGHT_ROW = 10
-JOG_DOWN_LEFT_ROW = 11
+JOG_DISTANCE = 10
+JOG_UP_RIGHT_ROW = 11
+JOG_DOWN_LEFT_ROW = 12
 
-ADD_DELETE_LAYER = 12
-NEXT_PREVIOUS_LAYER = 13
+ADD_DELETE_LAYER = 13
+NEXT_PREVIOUS_LAYER = 14
 
-GRID_LAYOUT = 14
+GRID_LAYOUT = 15
 
 # Column
 COLUMN_0 = 0
@@ -214,11 +215,11 @@ def send_to_robot():
                     # box_x = float(round(box.x, 2))
                     # box_y = float(round(box.y, 2))
                     # box_width = box.width
-                    # box_height = box.height
+                    # box_length = box.length
                     box_angle = box.angle
                     box_layer = box.layer
                     box_center_x = float(round(box.x + box.width / 2, 2))
-                    box_center_y = float(round(box.y + box.height / 2, 2))
+                    box_center_y = float(round(box.y + box.length / 2, 2))
                     
                     # Add to the list
                     
@@ -237,14 +238,14 @@ def send_to_robot():
 
 
 
-def get_rotated_bounds(x, y, width, height, angle):
+def get_rotated_bounds(x, y, width, length, angle):
     angle_rad = np.radians(angle)
-    cx, cy = x + width / 2, y + height / 2
+    cx, cy = x + width / 2, y + length / 2
     corners = np.array([
         [x, y],
         [x + width, y],
-        [x + width, y + height],
-        [x, y + height]
+        [x + width, y + length],
+        [x, y + length]
     ]) - [cx, cy]
     rotation_matrix = np.array([
         [np.cos(angle_rad), -np.sin(angle_rad)],
@@ -257,8 +258,8 @@ def get_rotated_bounds(x, y, width, height, angle):
 def boxes_overlap(box1, box2):
     # corners1 = get_rotated_bounds(*box1)
     # corners2 = get_rotated_bounds(*box2)
-    corners1 = get_rotated_bounds(box1.x, box1.y, box1.width, box1.height, box1.angle)
-    corners2 = get_rotated_bounds(box2.x, box2.y, box2.width, box2.height, box2.angle)
+    corners1 = get_rotated_bounds(box1.x, box1.y, box1.width, box1.length, box1.angle)
+    corners2 = get_rotated_bounds(box2.x, box2.y, box2.width, box2.length, box2.angle)
 
     def min_max(corners):
         return (np.min(corners[:, 0]), np.max(corners[:, 0]), np.min(corners[:, 1]), np.max(corners[:, 1]))
@@ -271,48 +272,48 @@ def boxes_overlap(box1, box2):
     return is_overlap(corners1, corners2)
 
 
-def box_hits_pallet_border(box, pallet_width, pallet_height):
-    x, y, width, height, angle = box.x, box.y, box.width, box.height, box.angle
-    rotated_corners = get_rotated_bounds(x, y, width, height, angle)
+def box_hits_pallet_border(box, pallet_width, pallet_length):
+    x, y, width, length, angle = box.x, box.y, box.width, box.length, box.angle
+    rotated_corners = get_rotated_bounds(x, y, width, length, angle)
 
     for corner in rotated_corners:
-        if corner[0] < 0 or corner[0] > pallet_width or corner[1] < 0 or corner[1] > pallet_height:
+        if corner[0] < 0 or corner[0] > pallet_width or corner[1] < 0 or corner[1] > pallet_length:
             return True
     return False
 
 #FN to draw pallet and boxes
-def draw_pallet_and_boxes(pallet_width, pallet_height, boxes):
+def draw_pallet_and_boxes(pallet_width, pallet_length, boxes):
     global ax
     ax.clear()
 
     #Draw pallet
-    ax.add_patch(plt.Rectangle((0, 0), pallet_width, pallet_height, edgecolor='black', facecolor='tan'))
+    ax.add_patch(plt.Rectangle((0, 0), pallet_width, pallet_length, edgecolor='black', facecolor='tan'))
 
     #Draw box
     for i, box in enumerate(boxes):
-        x, y, width, height, angle, id = box.x, box.y, box.width, box.height, box.angle, box.id 
+        x, y, width, length, angle, id = box.x, box.y, box.width, box.length, box.angle, box.id 
         overlap = any(i != j and boxes_overlap(box, other) for j, other in enumerate(boxes))
-        hits_pallet_border = box_hits_pallet_border(box, pallet_width, pallet_height)
+        hits_pallet_border = box_hits_pallet_border(box, pallet_width, pallet_length)
         edgecolor = 'red' if overlap or hits_pallet_border else 'blue'
         color = 'red' if i == selected_box else 'lightblue'  # Highlight the selected box in red
 
         #Box Rotation
-        rect = plt.Rectangle((x, y), width, height, edgecolor=edgecolor, facecolor=color, picker=True)
-        t = mtransforms.Affine2D().rotate_deg_around(x + width / 2, y + height / 2, angle) + ax.transData
+        rect = plt.Rectangle((x, y), width, length, edgecolor=edgecolor, facecolor=color, picker=True)
+        t = mtransforms.Affine2D().rotate_deg_around(x + width / 2, y + length / 2, angle) + ax.transData
         rect.set_transform(t)
         ax.add_patch(rect)  
 
         #Annotate box
         center_x = x + width / 2
-        center_y = y + height / 2
+        center_y = y + length / 2
         ax.text(center_x, center_y, str(id), color='black', fontsize=10, ha='center', va='bottom', rotation=0)
         ax.text(center_x, center_y, f'({center_x:.1f}, {center_y:.1f})', color='black', fontsize=8, ha='center', va='top', rotation=0)
 
     #Layers and number of pallets
-    ax.text(pallet_width / 2, pallet_height + 5, f'Layer {current_layer + 1}', fontsize=12, ha='center', va='center', color='green')
+    ax.text(pallet_width / 2, pallet_length + 5, f'Layer {current_layer + 1}', fontsize=12, ha='center', va='center', color='green')
 
     ax.set_xlim(0, pallet_width + 10)
-    ax.set_ylim(0, pallet_height + 10)
+    ax.set_ylim(0, pallet_length + 10)
     ax.set_aspect('equal')
     canvas.draw()
     # Khairul
@@ -327,16 +328,16 @@ def update_canvas():
         print("Invalid input! Please enter a valid number.")
         pallet_width = 50  
     try:
-        pallet_height = int(pallet_height_entry.get())
+        pallet_length = int(pallet_length_entry.get())
     except ValueError:
         print("Invalid input! Please enter a valid number.")
-        pallet_height = 50  
+        pallet_length = 50  
     
-    # TODO Khairul to add validation for pellet width/height
+    # TODO Khairul to add validation for pellet width/length
     # validate_pallet_width_input(pallet_width)
-    # validate_pallet_height_input(pallet_height)
+    # validate_pallet_length_input(pallet_length)
 
-    draw_pallet_and_boxes(pallet_width, pallet_height, layers[current_layer])
+    draw_pallet_and_boxes(pallet_width, pallet_length, layers[current_layer])
 
 # Event for Button press
 def on_press(event):
@@ -347,16 +348,16 @@ def on_press(event):
     # for box in layers[current_layer]:
     for i, box in enumerate(layers[current_layer]):
         print(box)
-        x, y, width, height, angle = box.x, box.y, box.width, box.height, box.angle
+        x, y, width, length, angle = box.x, box.y, box.width, box.length, box.angle
         center_x = x + width / 2
-        center_y = y + height / 2
+        center_y = y + length / 2
 
         transformed_x = event.xdata - center_x
         transformed_y = event.ydata - center_y
         rotated_x = transformed_x * np.cos(np.radians(angle)) + transformed_y * np.sin(np.radians(angle))
         rotated_y = -transformed_x * np.sin(np.radians(angle)) + transformed_y * np.cos(np.radians(angle))
 
-        if -width / 2 <= rotated_x <= width / 2 and -height / 2 <= rotated_y <= height / 2:
+        if -width / 2 <= rotated_x <= width / 2 and -length / 2 <= rotated_y <= length / 2:
             dragging_box = i
             selected_box = i
             offset_x = rotated_x
@@ -374,15 +375,15 @@ def on_motion(event):
         return
 
     box = layers[current_layer][dragging_box]
-    width, height, angle, id = box.width, box.height, box.angle, box.id
+    width, length, angle, id = box.width, box.length, box.angle, box.id
 
     center_x = event.xdata - offset_x
     center_y = event.ydata - offset_y
 
     new_x = center_x - width / 2
-    new_y = center_y - height / 2
+    new_y = center_y - length / 2
 
-    # layers[current_layer][dragging_box] = Box(new_x, new_y, width, height, angle, id, current_layer)
+    # layers[current_layer][dragging_box] = Box(new_x, new_y, width, length, angle, id, current_layer)
     box.x = new_x
     box.y = new_y
     print(box)
@@ -399,10 +400,11 @@ def add_box():
     global layers
     angle = 0
     new_width = int(box_width_entry.get())
+    new_length = int(box_length_entry.get())
     new_height = int(box_height_entry.get())
-    box_id = len(layers[current_layer]) + 1  
+    box_id = len(layers[current_layer]) + 1
 
-    new_box = Box(10, 10, new_width, new_height, box_id, angle, current_layer)
+    new_box = Box(10, 10, new_width, new_length, new_height, box_id, angle, current_layer)
     layers[current_layer].append(new_box)
     print(new_box)
 
@@ -420,18 +422,18 @@ def delete_box():
 def rotate_box():
     global layers, selected_box
     if selected_box is not None:
-        x, y, width, height, angle = layers[current_layer][selected_box]
-        layers[current_layer][selected_box] = (x, y, width, height, (angle + 15) % 360)
+        x, y, width, length, angle = layers[current_layer][selected_box]
+        layers[current_layer][selected_box] = (x, y, width, length, (angle + 15) % 360)
         update_canvas()
 
 # FN jog box
 def jog_box(dx, dy):
     global layers, selected_box
     if selected_box is not None:
-        x, y, width, height, angle = layers[current_layer][selected_box]
+        x, y, width, length, angle = layers[current_layer][selected_box]
 
         # apply jog data in global space relative to pallet
-        layers[current_layer][selected_box] = (x + dx, y + dy, width, height, angle)
+        layers[current_layer][selected_box] = (x + dx, y + dy, width, length, angle)
         update_canvas()
 
 # FN for jogging buttons
@@ -518,10 +520,10 @@ pallet_width_entry = tk.Entry(root)
 pallet_width_entry.insert(0, "200")
 pallet_width_entry.grid(row=PALLET_WIDTH, column=COLUMN_1)
 
-ttk.Label(root, text="Pallet Height").grid(row=PALLET_HEIGHT, column=COLUMN_0)
-pallet_height_entry = tk.Entry(root)
-pallet_height_entry.insert(0, "200")
-pallet_height_entry.grid(row=PALLET_HEIGHT, column=COLUMN_1)
+ttk.Label(root, text="Pallet length").grid(row=PALLET_LENGTH, column=COLUMN_0)
+pallet_length_entry = tk.Entry(root)
+pallet_length_entry.insert(0, "200")
+pallet_length_entry.grid(row=PALLET_LENGTH, column=COLUMN_1)
 
 # input box dimensions
 ttk.Label(root, text="Box Width").grid(row=BOX_WIDTH, column=COLUMN_0)
@@ -529,12 +531,15 @@ box_width_entry = tk.Entry(root)
 box_width_entry.insert(0, "50")
 box_width_entry.grid(row=BOX_WIDTH, column=COLUMN_1)
 
+ttk.Label(root, text="Box Length").grid(row=BOX_LENGTH, column=COLUMN_0)
+box_length_entry = tk.Entry(root)
+box_length_entry.insert(0, "30")
+box_length_entry.grid(row=BOX_LENGTH, column=COLUMN_1)
+
 ttk.Label(root, text="Box Height").grid(row=BOX_HEIGHT, column=COLUMN_0)
 box_height_entry = tk.Entry(root)
 box_height_entry.insert(0, "30")
 box_height_entry.grid(row=BOX_HEIGHT, column=COLUMN_1)
-
-# ttk.Button(root, text="Update Pallet", command=update_canvas).grid(row=PALLET_UPDATE, column=COLUMN_2)
 
 ttk.Button(root, text="Add Box", command=add_box).grid(row=ADD_DELETE_BOX_ROW, column=COLUMN_0)
 ttk.Button(root, text="Delete Box", command=delete_box).grid(row=ADD_DELETE_BOX_ROW, column=COLUMN_1)
