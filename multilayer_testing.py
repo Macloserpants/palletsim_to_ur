@@ -1,8 +1,10 @@
 import tkinter as tk
 from tkinter import ttk
 
+import select
 import numpy as np
-import json
+
+import select
 import socket
 import threading
 import queue
@@ -14,6 +16,8 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 from box import Box
 
+# Temp
+# IP_ADDRESS = "192.168.100.200"
 PORT = 50000
 # Row / Col editing
 
@@ -75,11 +79,11 @@ def polling_mainloop():
 
 def get_ethernet_ip():
     for interface, addrs in psutil.net_if_addrs().items():
-        print(f"Interface: {interface}")  # Debugging line to show which interface is being processed
+        print(f"Interface: {interface}")
 
         # Check if it's an Ethernet interface (Adjust this name depending on your system)
-        # if "Ethernet " in interface:
-        if "lan3" in interface:
+        # Change below according to your LAN connection. Eg. to if "Ethernet " in interface:
+        if "Ethernet 2" in interface:
             for addr in addrs:
                 # Look for an IPv4 address
                 if addr.family == socket.AF_INET:
@@ -88,18 +92,22 @@ def get_ethernet_ip():
                     return addr.address
                 else:
                     no_ethernet_connection = "Check your ethernet connection"  
-    return no_ethernet_connection  # If no Ethernet interface is found
+    # return no_ethernet_connection  # If no Ethernet interface is found
 
 def server_thread_func(stop_event):
     global connection_established, client_connection
 
     IP_ADDRESS = get_ethernet_ip()
     
+
     while not stop_event.is_set():
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR, 1)
+            
             try:
                 sock.bind((IP_ADDRESS, PORT)) 
                 sock.listen()
+                
                 print(type(IP_ADDRESS))
                 print (f"Server listening on {IP_ADDRESS}:{PORT}")    
                 server_label.config(text="Server Status: Waiting for Socket Connection")
@@ -109,17 +117,18 @@ def server_thread_func(stop_event):
                 client_connection = conn
                 connection_established = True
 
-                with client_connection:
-                    print(f"Connected by {addr}")
-                    server_label.config(text="Server Status: Connected")
-                    while True:
-                        update_gui_from_server
-                        data = client_connection.recv(1024)
-                        if not data:
-                            break
-                        print(f"Received: {data.decode()}")
-                        client_connection.sendall(b"Hello from server!")
-                        message_queue.put(f"Received from client: {data.decode()}")  # Put message into the queue for GUI
+                # with client_connection:
+                print(f"Connected by {addr}")
+                server_label.config(text="Server Status: Connected")
+                update_gui_from_server
+                    # while True:
+                        
+                        # data = client_connection.recv(1024)
+                        # if not data:
+                        #     break
+                        # # print(f"Received: {data.decode()}")
+                        # client_connection.sendall(b"Main response!")
+                        # message_queue.put(f"Received from client: {data.decode()}")  # Put message into the queue for GUI
                         
             except Exception as e:
                 update_server_status("(Error) Read terminal for details")
@@ -153,75 +162,128 @@ def update_gui_from_server():
     # Keep checking for messages while the GUI is running
     root.after(100, update_gui_from_server)
 
+###
+def send_and_wait_for_response(client_connection, data_to_send):
+    # Send the data to the client
+    if client_connection.fileno() == -1:
+        print("Socket is invalid or closed.")
+        return None
+    data_to_send = data_to_send[0]
+    data_to_send = str(data_to_send).replace("[", "(").replace("]", ")") + '\n'
+    
+    
+    client_connection.sendall(data_to_send.encode('utf-8'))
 
+    print(f"Sent: {data_to_send}")
+
+    if client_connection.fileno() == -1:
+        print("Socket is invalid or closed.")
+        return None
+
+    else:
+        print("SOCKET IS OPEN AND READY TO GO")
+    
+    COMPLETE_STATUS = False
+
+    if(COMPLETE_STATUS == False):
+        print("im here")
+        response = client_connection.recv(1024).decode('utf-8')
+
+    else:
+        print("EXITING?")
+        exit
+
+    # try:
+    # # Wait for a response from the client (blocking call)
+    #     print("Did you just skip me")
+    #     print("Checking socket state:", client_connection.fileno())
+
+    #     ready_to_read, _, _ = select.select([client_connection], [], [], 9999)  
+    #     print("Wth im tired")
+    #     if ready_to_read:
+    #         response = client_connection.recv(1024).decode('utf-8')
+    #         print("Data sent:", data_to_send)
+    #         print("Waiting for response...")
+
+    #         print(f"Received: {response}")
+    #         if client_connection.fileno() == -1:
+    #             print("Socket is invalid or closed.")
+    #             return None
+
+    #         print("Why am i not out yet")
+    #         return response
+    #     else:
+    #         print("No response received within timeout.")
+    #         return None
+    # except Exception as e:
+    #     print(f"Error during socket operation: {e}")
+
+###
+
+def threaded_send_and_wait(client_connection, data):
+    response = send_and_wait_for_response(client_connection, data)
+    if response:
+        print("Response received, proceeding to next box.")
+    else:
+        print("No response received, skipping box.")
+    
 def send_to_robot():
     global connection_established, client_connection
 
     if connection_established and client_connection:
         try:
-        
-            # Whats the best way to transfer the data?
+            for box in layers[current_layer]:
+                data_list = []
+                counter = 0
+                count = len(layers[current_layer])
+
+                if (count != counter):
+                    box_id = box.id
+                    # box_x = float(round(box.x, 2))
+                    # box_y = float(round(box.y, 2))
+                    # box_width = box.width
+                    # box_height = box.height
+                    box_angle = box.angle
+                    box_layer = box.layer
+                    box_center_x = float(round(box.x + box.width / 2, 2))
+                    box_center_y = float(round(box.y + box.height / 2, 2))
+                    
+                    # Add to the list
+                    
+                    print("Total number of Boxes: " + str(count))
+                    data_list.append([count, box_id, (box_center_x/1000), (-box_center_y/1000), box_angle, box_layer])
+
+                    print("DATA LIST")
+                    print(data_list)
+
+                    response = send_and_wait_for_response(client_connection, data_list)
+                    counter = counter + 1
+                # send_and_wait_for_response(client_connection, data_list)
+
+                # response_thread = threading.Thread(target=send_and_wait_for_response, args=(client_connection, data_list))  # Pass arguments as a tuple
+                # response_thread.daemon = True  # This ensures the thread exits when the main program exits
+                # response_thread.start()
+                # send_and_wait_for_response(client_connection, data_list)
+                # threading.Thread(target=threaded_send_and_wait, args=(client_connection, data_list)).start()                 
+                
             
-            ###### IDEA 1 CSV ##########
-
-            # for box in layers[current_layer]:
-            #     center_x = box.x + box.width / 2
-            #     center_y = box.y + box.height / 2
-            #     csv_data = "\n".join([f"{box.id},{center_x},{center_y},{box.width},{box.height},{box.angle},{box.layer}"])
-            # csv_data = "\n".join([f"{box.id},{box.x},{box.y},{box.width},{box.height},{box.angle},{box.layer}" for box in layers[current_layer]])
-            # print("CSV DATA:")
-            # print(csv_data)
-            # client_connection.sendall(csv_data.encode('utf-8'))
-
-            ###### IDEA 2 JSON ##########
-
-            # client_connection.sendall(data.encode('ascii'))  # Send data to client
-
-            # boxes_dict = [box.to_dict() for box in enumerate(layers[current_layer])]
-            # # Convert the list of dictionaries to a JSON string
-            # json_data = json.dumps(boxes_dict)
-
-            # client_connection.sendall(json_data.encode('urf-8'))  # Send data to client
-            
-            ###### IDEA 3 ASCII ##########
-
-            # bytes_sent = client_connection.sendall(data.encode('ascii'))
-            # if bytes_sent == len(data.encode('ascii')):
-            #     print("Data sent successfully!")
-            # else:
-            #     print(f"Warning: Only {bytes_sent} bytes were sent out of {len(script)}.")
-
-            ###### IDEA 4 Parse it here and send over a list data in string 1-by-1.
-            # 1. Send a Boolean to the robot for monitoring
-            # 2. Send a 
-
-            data_list = [[box.id, round(box.x, 2), round(box.y, 2), box.width, box.height, box.angle, box.layer, round(box.x + box.width / 2, 2), round(box.y + box.height / 2, 2)]
-            for box in layers[current_layer]]
-            print("DATA LIST")
-            print(data_list)
+            # data_list = [[box.id, float(round(box.x, 2)), float(round(box.y, 2)), box.width, box.height, box.angle, box.layer, float(round(box.x + box.width / 2, 2)), float(round(box.y + box.height / 2, 2))]
+            # for box in layers[current_layer]]
             # Convert list to string format that URScript can parse
-            data_string = str(data_list).replace("[", "{").replace("]", "}")
+            # data_string = str(data_list).replace("[", "{").replace("]", "}")
+            # data_string = str(data_list) + '\n'
             
-            print("DATA SENT TO UR:")
-            print(data_string)
+            # print("DATA SENT TO UR:")
+            # print(data_string)
 
-            client_connection.sendall(data_string.encode('utf-8'))
+            # client_connection.sendall(data_string.encode('utf-8'))
             
             # print(f"Sent: {csv_data}")
         except Exception as e:
             print(f"Error sending data: {str(e)}")
             update_server_status("Server Status: (Error) Failed to send data")
 
-# KHAIRUL try URScript to robot
-def urscript_to_robot():
-    pose = [0.138, -0.492, -0.072, 3.14, 0, 0]  # X, Y, Z, RX, RY, RZ in meters and radians
-    script = f"""
-    def move_robot():
-        target_pose = p{pose}  # Use 'p' for pose
-        movel(target_pose, a=1.0, v=0.5)
-    end
-    """
-    return script
+
 
 def get_rotated_bounds(x, y, width, height, angle):
     angle_rad = np.radians(angle)
@@ -468,37 +530,19 @@ def delete_layer():
 
 # Test check list
 def current_list_check():
-    print(layers[current_layer])
+    print(layers[current_layer] + "Box Midpoints")
     print(type(layers[current_layer]))
-#Validate pallet width 
-# def validate_pallet_width_input(pallet_width):
-#     try:
-#         if 50 <= pallet_width <= 500:  
-#             return True
-#         else:
-#             return False
-#     except ValueError:
-#         return False
-    
-#Validate pallet width 
-# def validate_pallet_height_input(pallet_height):
-#     try:
-#         if 50 <= pallet_height <= 500: 
-#             return True
-#         else:
-#             return False
-#     except ValueError:
-#         return False
 
 # IP Address
 ttk.Label(root, text="Your IPV4 Address:").grid(row=IP_ADDRESS_1, column=COLUMN_0)
 ip_address_entry = tk.Entry(root)
 ip_address_entry.grid(row=IP_ADDRESS_1, column=COLUMN_1)
 ip_address = get_ethernet_ip()
+# ip_address = IP_ADDRESS
 ip_address_entry.insert(0, f"{ip_address}")
 
 # Connect to Robot 
-ttk.Button(root, text="Connect", command=set_server_connection).grid(row=IP_ADDRESS_1, column=COLUMN_3)
+ttk.Button(root, text="Connect", command=set_server_connection).grid(row=IP_ADDRESS_1, column=COLUMN_3)  
 
 # Server Connection status
 server_label = ttk.Label(root, text="Server Status: Disconnected")
