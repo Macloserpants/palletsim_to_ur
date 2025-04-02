@@ -179,7 +179,6 @@ def send_and_wait_for_response(client_connection, data_to_send):
     if client_connection.fileno() == -1:
         print("Socket is invalid or closed.")
         return None
-
     else:
         print("SOCKET IS OPEN AND READY TO GO")
     
@@ -192,33 +191,6 @@ def send_and_wait_for_response(client_connection, data_to_send):
     else:
         print("EXITING?")
         exit
-
-    # try:
-    # # Wait for a response from the client (blocking call)
-    #     print("Did you just skip me")
-    #     print("Checking socket state:", client_connection.fileno())
-
-    #     ready_to_read, _, _ = select.select([client_connection], [], [], 9999)  
-    #     print("Wth im tired")
-    #     if ready_to_read:
-    #         response = client_connection.recv(1024).decode('utf-8')
-    #         print("Data sent:", data_to_send)
-    #         print("Waiting for response...")
-
-    #         print(f"Received: {response}")
-    #         if client_connection.fileno() == -1:
-    #             print("Socket is invalid or closed.")
-    #             return None
-
-    #         print("Why am i not out yet")
-    #         return response
-    #     else:
-    #         print("No response received within timeout.")
-    #         return None
-    # except Exception as e:
-    #     print(f"Error during socket operation: {e}")
-
-###
 
 def threaded_send_and_wait(client_connection, data):
     response = send_and_wait_for_response(client_connection, data)
@@ -258,27 +230,7 @@ def send_to_robot():
 
                     response = send_and_wait_for_response(client_connection, data_list)
                     counter = counter + 1
-                # send_and_wait_for_response(client_connection, data_list)
 
-                # response_thread = threading.Thread(target=send_and_wait_for_response, args=(client_connection, data_list))  # Pass arguments as a tuple
-                # response_thread.daemon = True  # This ensures the thread exits when the main program exits
-                # response_thread.start()
-                # send_and_wait_for_response(client_connection, data_list)
-                # threading.Thread(target=threaded_send_and_wait, args=(client_connection, data_list)).start()                 
-                
-            
-            # data_list = [[box.id, float(round(box.x, 2)), float(round(box.y, 2)), box.width, box.height, box.angle, box.layer, float(round(box.x + box.width / 2, 2)), float(round(box.y + box.height / 2, 2))]
-            # for box in layers[current_layer]]
-            # Convert list to string format that URScript can parse
-            # data_string = str(data_list).replace("[", "{").replace("]", "}")
-            # data_string = str(data_list) + '\n'
-            
-            # print("DATA SENT TO UR:")
-            # print(data_string)
-
-            # client_connection.sendall(data_string.encode('utf-8'))
-            
-            # print(f"Sent: {csv_data}")
         except Exception as e:
             print(f"Error sending data: {str(e)}")
             update_server_status("Server Status: (Error) Failed to send data")
