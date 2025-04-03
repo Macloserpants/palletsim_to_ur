@@ -1,7 +1,6 @@
 import tkinter as tk
 from tkinter import ttk
 
-import select
 import numpy as np
 
 import select
@@ -56,7 +55,11 @@ selected_box = None
 current_layer = 0
 
 layers = [[]]
-list_of_pose = [[]]
+select_dropdown_values = []
+action_dropdown_values = []
+
+curr_action_dropdown_val = None
+curr_selection_dropdown_val = None
 
 stop_event = threading.Event()
 connection_established = False
@@ -74,6 +77,10 @@ def on_closing(stop_event):
     root.quit()  # Exit the mainloop
 
 def polling_mainloop():
+    # To review
+    # Should update dropdown once after every action OR continuous polling (?) 
+    # Most original functions in code are all currently updated after every action. This polling mainloop overrides.
+    # update_all_dropdown()
     update_canvas()
     update_gui_from_server()  # Update the GUI based on messages from the server
     root.after(100, polling_mainloop)  # Keep checking the message queue every 100ms
@@ -98,9 +105,9 @@ def get_ethernet_ip():
 def server_thread_func(stop_event):
     global connection_established, client_connection
 
-    IP_ADDRESS = get_ethernet_ip()
+    # IP_ADDRESS = get_ethernet_ip()
+    IP_ADDRESS = "172.16.103.206"
     
-
     while not stop_event.is_set():
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             sock.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR, 1)
@@ -148,7 +155,6 @@ def _update_server_status_label(message):
         server_label.config(text=f"Server Status: {message}")
 
 def update_server_status(message):
-        # Update the label text from the socket communication thread
         # This method must run in the main GUI thread
         root.after(0, _update_server_status_label, message)
 
@@ -166,6 +172,7 @@ def update_gui_from_server():
 ###
 def send_and_wait_for_response(client_connection, data_to_send):
     # Send the data to the client
+    # Debug
     if client_connection.fileno() == -1:
         print("Socket is invalid or closed.")
         return None
@@ -177,22 +184,17 @@ def send_and_wait_for_response(client_connection, data_to_send):
 
     print(f"Sent: {data_to_send}")
 
+    # Debug
     if client_connection.fileno() == -1:
         print("Socket is invalid or closed.")
         return None
     else:
         print("SOCKET IS OPEN AND READY TO GO")
     
-    COMPLETE_STATUS = False
-
-    if(COMPLETE_STATUS == False):
         print("im here")
-        response = client_connection.recv(1024).decode('utf-8')
+        client_connection.recv(1024).decode('utf-8')
 
-    else:
-        print("EXITING?")
-        exit
-
+# Unused
 def threaded_send_and_wait(client_connection, data):
     response = send_and_wait_for_response(client_connection, data)
     if response:
@@ -200,7 +202,7 @@ def threaded_send_and_wait(client_connection, data):
     else:
         print("No response received, skipping box.")
     
-def send_to_robot():
+def send_all_pose_to_robot():
     global connection_established, client_connection
 
     if connection_established and client_connection:
@@ -209,7 +211,6 @@ def send_to_robot():
                 data_list = []
                 counter = 0
                 count = len(layers[current_layer])
-
                 if (count != counter):
                     box_id = box.id
                     # box_x = float(round(box.x, 2))
@@ -236,6 +237,72 @@ def send_to_robot():
             print(f"Error sending data: {str(e)}")
             update_server_status("Server Status: (Error) Failed to send data")
 
+def send_selected_pose_to_robot(selected_index, action_selected):
+    global connection_established, client_connection
+
+    print("Flipping SENDING IT")
+    print(selected_index)
+    print(type(selected_index))
+    print("AGAIN")
+    print(action_selected)
+    print(type(action_selected))
+    
+    if connection_established and client_connection:
+        if curr_action_dropdown_val == 1:
+            try:
+                for box in layers[current_layer]:
+                    if box.id == selected_index:
+                        print("ONLY 1")
+                        data_list = []
+                        count = len(layers[current_layer])
+                        box_id = box.id
+                        # box_x = float(round(box.x, 2))
+                        # box_y = float(round(box.y, 2))
+                        # box_width = box.width
+                        # box_length = box.length
+                        box_angle = box.angle
+                        box_layer = box.layer
+                        box_center_x = float(round(box.x + box.width / 2, 2))
+                        box_center_y = float(round(box.y + box.length / 2, 2))
+                        
+                        data_list.append([count, box_id, (box_center_x/1000), (-box_center_y/1000), box_angle, box_layer])
+
+                        print("DATA LIST")
+                        print(data_list)
+
+                        response = send_and_wait_for_response(client_connection, data_list)
+
+            except Exception as e:
+                print(f"Error sending data: {str(e)}")
+                update_server_status("Server Status: (Error) Failed to send data")
+
+        elif curr_action_dropdown_val == 2:
+            try:
+                for box in layers[current_layer]:
+                    if box.id >= selected_index:
+                        print("IM IN")
+                        data_list = []
+                        count = len(layers[current_layer])
+                        box_id = box.id
+                        # box_x = float(round(box.x, 2))
+                        # box_y = float(round(box.y, 2))
+                        # box_width = box.width
+                        # box_length = box.length
+                        box_angle = box.angle
+                        box_layer = box.layer
+                        box_center_x = float(round(box.x + box.width / 2, 2))
+                        box_center_y = float(round(box.y + box.length / 2, 2))
+                        
+                        data_list.append([count, box_id, (box_center_x/1000), (-box_center_y/1000), box_angle, box_layer])
+
+                        print("DATA LIST")
+                        print(data_list)
+
+                        response = send_and_wait_for_response(client_connection, data_list)
+
+            except Exception as e:
+                print(f"Error sending data: {str(e)}")
+                update_server_status("Server Status: (Error) Failed to send data")
 
 
 def get_rotated_bounds(x, y, width, length, angle):
@@ -316,8 +383,6 @@ def draw_pallet_and_boxes(pallet_width, pallet_length, boxes):
     ax.set_ylim(0, pallet_length + 10)
     ax.set_aspect('equal')
     canvas.draw()
-    # Khairul
-    # return [center_x, center_y]
 
 # FN to update Pallet
 def update_canvas():
@@ -330,7 +395,7 @@ def update_canvas():
     try:
         pallet_length = int(pallet_length_entry.get())
     except ValueError:
-        print("Invalid input! Please enter a valid number.")
+        print("Invalid input! Please enter ,m a valid number.")
         pallet_length = 50  
     
     # TODO Khairul to add validation for pellet width/length
@@ -345,7 +410,6 @@ def on_press(event):
     if event.inaxes is not ax:
         return
     selected_box = None
-    # for box in layers[current_layer]:
     for i, box in enumerate(layers[current_layer]):
         print(box)
         x, y, width, length, angle = box.x, box.y, box.width, box.length, box.angle
@@ -375,7 +439,7 @@ def on_motion(event):
         return
 
     box = layers[current_layer][dragging_box]
-    width, length, angle, id = box.width, box.length, box.angle, box.id
+    width, length = box.width, box.length
 
     center_x = event.xdata - offset_x
     center_y = event.ydata - offset_y
@@ -383,7 +447,6 @@ def on_motion(event):
     new_x = center_x - width / 2
     new_y = center_y - length / 2
 
-    # layers[current_layer][dragging_box] = Box(new_x, new_y, width, length, angle, id, current_layer)
     box.x = new_x
     box.y = new_y
     print(box)
@@ -406,8 +469,8 @@ def add_box():
 
     new_box = Box(10, 10, new_width, new_length, new_height, box_id, angle, current_layer)
     layers[current_layer].append(new_box)
-    print(new_box)
-
+    print(new_box)    
+    update_all_dropdown()
     update_canvas()
 
 # FN delete box
@@ -417,6 +480,7 @@ def delete_box():
         layers[current_layer] = [box for box in layers[current_layer] if box.id != selected_box]
         selected_box = None
         update_canvas()
+        update_all_dropdown()
 
 # FN rotate box
 def rotate_box():
@@ -474,8 +538,6 @@ def add_layer():
     current_layer = len(layers) - 1
     update_canvas()
 
-#Khairul 
-
 def delete_layer():
     global layers, current_layer
     layers.pop(current_layer)
@@ -484,15 +546,33 @@ def delete_layer():
 
 # Test check list
 def current_list_check():
-    print(layers[current_layer] + "Box Midpoints")
+    print(str(layers[current_layer]) + "Box Midpoints")
     print(type(layers[current_layer]))
+
+def update_all_dropdown():
+    update_dropdown_selection(event=None)
+    update_dropdown_action(event=None)
+
+def update_dropdown_action(event):
+    global curr_action_dropdown_val
+
+    box_dropdown_action['values'] = ['Send Index pose only', 'Send all pose from Index onwards']
+    if box_dropdown_action.get() == 'Send Index pose only':
+            curr_action_dropdown_val = 1
+    elif box_dropdown_action.get() == 'Send all pose from Index onwards':
+            curr_action_dropdown_val = 2        
+            
+def update_dropdown_selection(event):
+    global curr_selection_dropdown_val
+
+    box_dropdown_selection['values'] = [box.id for box in layers[current_layer]]  # Updated values
+    curr_selection_dropdown_val = box_dropdown_selection.get()
 
 # IP Address
 ttk.Label(root, text="Your IPV4 Address:").grid(row=IP_ADDRESS_1, column=COLUMN_0)
 ip_address_entry = tk.Entry(root)
 ip_address_entry.grid(row=IP_ADDRESS_1, column=COLUMN_1)
 ip_address = get_ethernet_ip()
-# ip_address = IP_ADDRESS
 ip_address_entry.insert(0, f"{ip_address}")
 
 # Connect to Robot 
@@ -507,13 +587,30 @@ message_out_label = ttk.Label(root, text="Waiting for message to be sent")
 message_out_label.grid(row=IP_ADDRESS_2, column=COLUMN_2)
 message_queue = queue.Queue()
 
-tk.Button(root, text="Check array", command=lambda: current_list_check()).grid(row=PALLET_WIDTH, column=COLUMN_2)
+
+tk.Button(root, text="[Temp] Check array", command=lambda: current_list_check()).grid(row=NEXT_PREVIOUS_LAYER, column=COLUMN_2)
+
+############
+# Send all pallet pose to Robot
+tk.Button(root, text="Send Positions of all Boxes", command=lambda: send_all_pose_to_robot()).grid(row=IP_ADDRESS_2, column=COLUMN_3)
+
+# User selection for 1 box pose only or from box pose onwards 
+## Box selection drop down
+ttk.Label(root, text="Select Box Index").grid(row=BOX_WIDTH, column=COLUMN_2)
+box_dropdown_selection = ttk.Combobox(root)
+box_dropdown_selection.grid(row=BOX_LENGTH, column=COLUMN_2)
+box_dropdown_selection.bind("<<ComboboxSelected>>", update_dropdown_selection)
 
 
-# Send data to Robot
-# tk.Button(root, text="Send Data", command=lambda: send_to_robot("Hello from server!")).grid(row=IP_ADDRESS_2, column=COLUMN_3)
-tk.Button(root, text="Send Data", command=lambda: send_to_robot()).grid(row=IP_ADDRESS_2, column=COLUMN_3)
+## Action for Box selection
+ttk.Label(root, text="Action for Box Index").grid(row=BOX_WIDTH, column=COLUMN_3)
+box_dropdown_action = ttk.Combobox(root)
+box_dropdown_action.grid(row=BOX_LENGTH, column=COLUMN_3)
+box_dropdown_action.bind("<<ComboboxSelected>>", update_dropdown_action)
 
+tk.Button(root, text="Execute selected Action", command=lambda: send_selected_pose_to_robot(int(curr_selection_dropdown_val), curr_action_dropdown_val)).grid(row=BOX_HEIGHT, column=COLUMN_3)
+
+############
 # Pallet dimensions
 ttk.Label(root, text="Pallet Width").grid(row=PALLET_WIDTH, column=COLUMN_0)
 pallet_width_entry = tk.Entry(root)
@@ -525,7 +622,9 @@ pallet_length_entry = tk.Entry(root)
 pallet_length_entry.insert(0, "200")
 pallet_length_entry.grid(row=PALLET_LENGTH, column=COLUMN_1)
 
-# input box dimensions
+
+## Box Related ##
+# Input box dimensions
 ttk.Label(root, text="Box Width").grid(row=BOX_WIDTH, column=COLUMN_0)
 box_width_entry = tk.Entry(root)
 box_width_entry.insert(0, "50")
