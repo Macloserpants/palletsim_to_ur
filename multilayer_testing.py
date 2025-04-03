@@ -211,27 +211,19 @@ def send_all_pose_to_robot():
                 data_list = []
                 counter = 0
                 count = len(layers[current_layer])
-                if (count != counter):
-                    box_id = box.id
-                    # box_x = float(round(box.x, 2))
-                    # box_y = float(round(box.y, 2))
-                    # box_width = box.width
-                    # box_length = box.length
-                    box_angle = box.angle
-                    box_layer = box.layer
-                    box_center_x = float(round(box.x + box.width / 2, 2))
-                    box_center_y = float(round(box.y + box.length / 2, 2))
-                    
-                    # Add to the list
-                    
-                    print("Total number of Boxes: " + str(count))
-                    data_list.append([count, box_id, (box_center_x/1000), (-box_center_y/1000), box_angle, box_layer])
+                box_id = box.id
+                box_angle = box.angle
+                box_layer = box.layer
+                box_center_x = float(round(box.x + box.width / 2, 2))
+                box_center_y = float(round(box.y + box.length / 2, 2))
+                
+                print("Total number of Boxes: " + str(count))
+                data_list.append([count, box_id, (box_center_x/1000), (-box_center_y/1000), box_angle, box_layer])
 
-                    print("DATA LIST")
-                    print(data_list)
+                print("DATA LIST")
+                print(data_list)
 
-                    response = send_and_wait_for_response(client_connection, data_list)
-                    counter = counter + 1
+                response = send_and_wait_for_response(client_connection, data_list)
 
         except Exception as e:
             print(f"Error sending data: {str(e)}")
@@ -256,10 +248,6 @@ def send_selected_pose_to_robot(selected_index, action_selected):
                         data_list = []
                         count = len(layers[current_layer])
                         box_id = box.id
-                        # box_x = float(round(box.x, 2))
-                        # box_y = float(round(box.y, 2))
-                        # box_width = box.width
-                        # box_length = box.length
                         box_angle = box.angle
                         box_layer = box.layer
                         box_center_x = float(round(box.x + box.width / 2, 2))
@@ -323,8 +311,6 @@ def get_rotated_bounds(x, y, width, length, angle):
 
 
 def boxes_overlap(box1, box2):
-    # corners1 = get_rotated_bounds(*box1)
-    # corners2 = get_rotated_bounds(*box2)
     corners1 = get_rotated_bounds(box1.x, box1.y, box1.width, box1.length, box1.angle)
     corners2 = get_rotated_bounds(box2.x, box2.y, box2.width, box2.length, box2.angle)
 
@@ -357,12 +343,12 @@ def draw_pallet_and_boxes(pallet_width, pallet_length, boxes):
     ax.add_patch(plt.Rectangle((0, 0), pallet_width, pallet_length, edgecolor='black', facecolor='tan'))
 
     #Draw box
-    for i, box in enumerate(boxes):
+    for box in boxes:
         x, y, width, length, angle, id = box.x, box.y, box.width, box.length, box.angle, box.id 
-        overlap = any(i != j and boxes_overlap(box, other) for j, other in enumerate(boxes))
+        overlap = any(box.id != other.id and boxes_overlap(box, other) for other in boxes)
         hits_pallet_border = box_hits_pallet_border(box, pallet_width, pallet_length)
         edgecolor = 'red' if overlap or hits_pallet_border else 'blue'
-        color = 'red' if i == selected_box else 'lightblue'  # Highlight the selected box in red
+        color = 'red' if box.id == selected_box else 'lightblue'  # Highlight the selected box in red
 
         #Box Rotation
         rect = plt.Rectangle((x, y), width, length, edgecolor=edgecolor, facecolor=color, picker=True)
@@ -423,7 +409,7 @@ def on_press(event):
 
         if -width / 2 <= rotated_x <= width / 2 and -length / 2 <= rotated_y <= length / 2:
             dragging_box = i
-            selected_box = i
+            selected_box = box.id
             offset_x = rotated_x
             offset_y = rotated_y
             break
@@ -450,7 +436,6 @@ def on_motion(event):
     box.x = new_x
     box.y = new_y
     print(box)
-
     update_canvas()
 
 # Event mouse release
@@ -476,8 +461,13 @@ def add_box():
 # FN delete box
 def delete_box():
     global layers, selected_box
+    print(selected_box)
     if selected_box is not None:
         layers[current_layer] = [box for box in layers[current_layer] if box.id != selected_box]
+
+        for index, box in enumerate(layers[current_layer], start=1):
+            box.id = index  # Reassign sequential IDs based on index
+
         selected_box = None
         update_canvas()
         update_all_dropdown()
