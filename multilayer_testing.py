@@ -15,8 +15,8 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 from box import Box
 
-# Temp
-# IP_ADDRESS = "192.168.100.200"
+# Temp IP ADDRESS
+# IP_ADDRESS = "172.16.103.206"
 PORT = 50000
 # Row / Col editing
 
@@ -52,9 +52,9 @@ dragging_box = None
 offset_x = 0
 offset_y = 0
 selected_box = None
-current_layer = 0
+current_layer = 1
 
-layers = [[]]
+layers = [None, []]
 select_dropdown_values = []
 action_dropdown_values = []
 
@@ -99,14 +99,12 @@ def get_ethernet_ip():
                     print(f"PORT: {PORT}")
                     return addr.address
                 else:
-                    no_ethernet_connection = "Check your ethernet connection"  
-    # return no_ethernet_connection  # If no Ethernet interface is found
+                    print("Check your ethernet connection")  
 
 def server_thread_func(stop_event):
     global connection_established, client_connection
 
-    # IP_ADDRESS = get_ethernet_ip()
-    IP_ADDRESS = "172.16.103.206"
+    IP_ADDRESS = get_ethernet_ip()
     
     while not stop_event.is_set():
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
@@ -125,10 +123,10 @@ def server_thread_func(stop_event):
                 client_connection = conn
                 connection_established = True
 
-                # with client_connection:
                 print(f"Connected by {addr}")
                 server_label.config(text="Server Status: Connected")
                 update_gui_from_server
+
                     # while True:
                         
                         # data = client_connection.recv(1024)
@@ -165,13 +163,12 @@ def update_gui_from_server():
         message_out_label.config(text=message)
     except queue.Empty:
         pass
-    
+
     # Keep checking for messages while the GUI is running
     root.after(100, update_gui_from_server)
 
 ###
 def send_and_wait_for_response(client_connection, data_to_send):
-    # Send the data to the client
     # Debug
     if client_connection.fileno() == -1:
         print("Socket is invalid or closed.")
@@ -209,16 +206,15 @@ def send_all_pose_to_robot():
         try:
             for box in layers[current_layer]:
                 data_list = []
-                counter = 0
-                count = len(layers[current_layer])
                 box_id = box.id
                 box_angle = box.angle
                 box_layer = box.layer
                 box_center_x = float(round(box.x + box.width / 2, 2))
                 box_center_y = float(round(box.y + box.length / 2, 2))
-                
+                count = len(layers[current_layer])
+                print(box_center_y)
                 print("Total number of Boxes: " + str(count))
-                data_list.append([count, box_id, (box_center_x/1000), (-box_center_y/1000), box_angle, box_layer])
+                data_list.append([count, box_id, (box_center_x/1000), (box_center_y/1000), box_angle, box_layer])
 
                 print("DATA LIST")
                 print(data_list)
@@ -253,7 +249,7 @@ def send_selected_pose_to_robot(selected_index, action_selected):
                         box_center_x = float(round(box.x + box.width / 2, 2))
                         box_center_y = float(round(box.y + box.length / 2, 2))
                         
-                        data_list.append([count, box_id, (box_center_x/1000), (-box_center_y/1000), box_angle, box_layer])
+                        data_list.append([count, box_id, (box_center_x/1000), (box_center_y/1000), box_angle, box_layer])
 
                         print("DATA LIST")
                         print(data_list)
@@ -281,7 +277,7 @@ def send_selected_pose_to_robot(selected_index, action_selected):
                         box_center_x = float(round(box.x + box.width / 2, 2))
                         box_center_y = float(round(box.y + box.length / 2, 2))
                         
-                        data_list.append([count, box_id, (box_center_x/1000), (-box_center_y/1000), box_angle, box_layer])
+                        data_list.append([count, box_id, (box_center_x/1000), (box_center_y/1000), box_angle, box_layer])
 
                         print("DATA LIST")
                         print(data_list)
@@ -363,7 +359,7 @@ def draw_pallet_and_boxes(pallet_width, pallet_length, boxes):
         ax.text(center_x, center_y, f'({center_x:.1f}, {center_y:.1f})', color='black', fontsize=8, ha='center', va='top', rotation=0)
 
     #Layers and number of pallets
-    ax.text(pallet_width / 2, pallet_length + 5, f'Layer {current_layer + 1}', fontsize=12, ha='center', va='center', color='green')
+    ax.text(pallet_width / 2, pallet_length + 5, f'Layer {current_layer}', fontsize=12, ha='center', va='center', color='green')
 
     ax.set_xlim(0, pallet_width + 10)
     ax.set_ylim(0, pallet_length + 10)
@@ -449,8 +445,16 @@ def add_box():
     angle = 0
     new_width = int(box_width_entry.get())
     new_length = int(box_length_entry.get())
-    new_height = int(box_height_entry.get())
-    box_id = len(layers[current_layer]) + 1
+    
+    box_id = len(layers[current_layer]) + 1 # + 1 because it starts from 0 instead of 1
+
+    if current_layer > 1:
+        max_height = max(box.height 
+                         for layer in layers[:current_layer] if layer 
+                         for box in layer if box)
+        new_height = int(box_height_entry.get()) + max_height
+    else:
+        new_height = int(box_height_entry.get())
 
     new_box = Box(10, 10, new_width, new_length, new_height, box_id, angle, current_layer)
     layers[current_layer].append(new_box)
@@ -532,6 +536,7 @@ def delete_layer():
     global layers, current_layer
     layers.pop(current_layer)
     current_layer = len(layers) - 1
+    print(layers[current_layer])
     update_canvas()
 
 # Test check list
