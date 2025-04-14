@@ -31,16 +31,17 @@ BOX_WIDTH = 5
 BOX_LENGTH = 6
 BOX_HEIGHT = 7
 ADD_DELETE_BOX_ROW = 8
-ROTATE_BOX = 9
+ROTATE_VALUE = 9
+ROTATE_BOX = 10
 
-JOG_DISTANCE = 10
-JOG_UP_RIGHT_ROW = 11
-JOG_DOWN_LEFT_ROW = 12
+JOG_DISTANCE = 9
+JOG_UP_RIGHT_ROW = 10
+JOG_DOWN_LEFT_ROW = 11
 
-ADD_DELETE_LAYER = 13
-NEXT_PREVIOUS_LAYER = 14
+ADD_DELETE_LAYER = 12
+NEXT_PREVIOUS_LAYER = 13
 
-GRID_LAYOUT = 15
+GRID_LAYOUT = 14
 
 # Column
 COLUMN_0 = 0
@@ -176,7 +177,6 @@ def send_and_wait_for_response(client_connection, data_to_send):
     data_to_send = data_to_send[0]
     data_to_send = str(data_to_send).replace("[", "(").replace("]", ")") + '\n'
     
-    
     client_connection.sendall(data_to_send.encode('utf-8'))
 
     print(f"Sent: {data_to_send}")
@@ -208,13 +208,14 @@ def send_all_pose_to_robot():
                 data_list = []
                 box_id = box.id
                 box_angle = box.angle
+                box_height = box.height
                 box_layer = box.layer
                 box_center_x = float(round(box.x + box.width / 2, 2))
                 box_center_y = float(round(box.y + box.length / 2, 2))
                 count = len(layers[current_layer])
                 print(box_center_y)
                 print("Total number of Boxes: " + str(count))
-                data_list.append([count, box_id, (box_center_x/1000), (box_center_y/1000), box_angle, box_layer])
+                data_list.append([count, box_id, (box_center_x/1000), (box_center_y/1000), box_angle, box_height, box_layer])
 
                 print("DATA LIST")
                 print(data_list)
@@ -227,29 +228,22 @@ def send_all_pose_to_robot():
 
 def send_selected_pose_to_robot(selected_index, action_selected):
     global connection_established, client_connection
-
-    print("Flipping SENDING IT")
-    print(selected_index)
-    print(type(selected_index))
-    print("AGAIN")
-    print(action_selected)
-    print(type(action_selected))
     
     if connection_established and client_connection:
         if curr_action_dropdown_val == 1:
             try:
                 for box in layers[current_layer]:
                     if box.id == selected_index:
-                        print("ONLY 1")
                         data_list = []
                         count = len(layers[current_layer])
                         box_id = box.id
                         box_angle = box.angle
+                        box_height = box.height
                         box_layer = box.layer
                         box_center_x = float(round(box.x + box.width / 2, 2))
                         box_center_y = float(round(box.y + box.length / 2, 2))
                         
-                        data_list.append([count, box_id, (box_center_x/1000), (box_center_y/1000), box_angle, box_layer])
+                        data_list.append([count, box_id, (box_center_x/1000), (box_center_y/1000), box_angle, box_height, box_layer])
 
                         print("DATA LIST")
                         print(data_list)
@@ -264,20 +258,16 @@ def send_selected_pose_to_robot(selected_index, action_selected):
             try:
                 for box in layers[current_layer]:
                     if box.id >= selected_index:
-                        print("IM IN")
                         data_list = []
                         count = len(layers[current_layer])
                         box_id = box.id
-                        # box_x = float(round(box.x, 2))
-                        # box_y = float(round(box.y, 2))
-                        # box_width = box.width
-                        # box_length = box.length
                         box_angle = box.angle
+                        box_height = box.height
                         box_layer = box.layer
                         box_center_x = float(round(box.x + box.width / 2, 2))
                         box_center_y = float(round(box.y + box.length / 2, 2))
                         
-                        data_list.append([count, box_id, (box_center_x/1000), (box_center_y/1000), box_angle, box_layer])
+                        data_list.append([count, box_id, (box_center_x/1000), (box_center_y/1000), box_angle, box_height, box_layer])
 
                         print("DATA LIST")
                         print(data_list)
@@ -477,12 +467,25 @@ def delete_box():
         update_all_dropdown()
 
 # FN rotate box
-def rotate_box():
+def rotate_box_anticlockwise():
     global layers, selected_box
+    new_angle = float(box_angle_entry.get())
+
     if selected_box is not None:
-        x, y, width, length, angle = layers[current_layer][selected_box]
-        layers[current_layer][selected_box] = (x, y, width, length, (angle + 15) % 360)
-        update_canvas()
+        for box in layers[current_layer]:
+            if box.id == selected_box:
+                box.angle =  (box.angle + new_angle) % 360
+                update_canvas()
+
+def rotate_box_clockwise():
+    global layers, selected_box
+    new_angle = float(box_angle_entry.get())
+
+    if selected_box is not None:
+        for box in layers[current_layer]:
+            if box.id == selected_box:
+                box.angle =  (box.angle - new_angle) % 360
+                update_canvas()
 
 # FN jog box
 def jog_box(dx, dy):
@@ -635,9 +638,16 @@ box_height_entry = tk.Entry(root)
 box_height_entry.insert(0, "30")
 box_height_entry.grid(row=BOX_HEIGHT, column=COLUMN_1)
 
+# Box Rotation
+ttk.Label(root, text="Rotation Value (deg)").grid(row=ROTATE_VALUE, column=COLUMN_2)
+box_angle_entry = tk.Entry(root)
+box_angle_entry.insert(0, "10")
+box_angle_entry.grid(row=ROTATE_VALUE, column=COLUMN_3)
+
 ttk.Button(root, text="Add Box", command=add_box).grid(row=ADD_DELETE_BOX_ROW, column=COLUMN_0)
 ttk.Button(root, text="Delete Box", command=delete_box).grid(row=ADD_DELETE_BOX_ROW, column=COLUMN_1)
-ttk.Button(root, text="Rotate Box", command=rotate_box).grid(row=ROTATE_BOX, column=COLUMN_0)
+ttk.Button(root, text="Rotate Box Anti-clockwise", command=rotate_box_anticlockwise).grid(row=ROTATE_BOX, column=COLUMN_2)
+ttk.Button(root, text="Rotate Box Clockwise", command=rotate_box_clockwise).grid(row=ROTATE_BOX, column=COLUMN_3)
 
 ttk.Label(root, text="Jog Distance").grid(row=JOG_DISTANCE, column=COLUMN_0)
 jog_distance_entry = tk.Entry(root)
@@ -669,13 +679,13 @@ fig.canvas.mpl_connect("motion_notify_event", on_motion)
 fig.canvas.mpl_connect("button_release_event", on_release)
 
 # Bind the window close event to on_closing
-root.protocol("WM_DELETE_WINDOW", lambda: on_closing(stop_event))  # Properly close when the window is closed
-try:
-    polling_mainloop()
-except KeyboardInterrupt:
-    print("Program interrupted, exiting gracefully...")
-    root.quit()  # Ensure mainloop is stopped gracefully
+# root.protocol("WM_DELETE_WINDOW", lambda: on_closing(stop_event))  # Properly close when the window is closed
+# try:
+#     polling_mainloop()
+# except KeyboardInterrupt:
+#     print("Program interrupted, exiting gracefully...")
+#     root.quit()  # Ensure mainloop is stopped gracefully
 
 
-# update_canvas()
+update_canvas()
 root.mainloop()
