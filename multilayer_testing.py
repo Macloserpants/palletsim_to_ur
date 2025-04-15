@@ -3,7 +3,6 @@ from tkinter import ttk
 
 import numpy as np
 
-import select
 import socket
 import threading
 import queue
@@ -56,9 +55,8 @@ selected_box = None
 current_layer = 1
 
 layers = [None, []]
-select_dropdown_values = []
-action_dropdown_values = []
 
+ip_address_selection_val = None
 curr_action_dropdown_val = None
 curr_selection_dropdown_val = None
 
@@ -81,18 +79,24 @@ def polling_mainloop():
     # To review
     # Should update dropdown once after every action OR continuous polling (?) 
     # Most original functions in code are all currently updated after every action. This polling mainloop overrides.
-    # update_all_dropdown()
     update_canvas()
-    update_gui_from_server()  # Update the GUI based on messages from the server
-    root.after(100, polling_mainloop)  # Keep checking the message queue every 100ms
+    root.after(500, polling_mainloop)  # Keep checking the message queue every 100ms
+
+# IP_dropdown1
+def update_dropdown_ip(event):
+    global ip_address_selection_val
+
+    interfaces = list(psutil.net_if_addrs().keys())
+    print("dropdown IP test:")
+    print(interfaces)
+    ip_dropdown_selection['values'] = interfaces
+    ip_address_selection_val = ip_dropdown_selection.get()
 
 def get_ethernet_ip():
     for interface, addrs in psutil.net_if_addrs().items():
-        print(f"Interface: {interface}")
-
-        # Check if it's an Ethernet interface (Adjust this name depending on your system)
-        # Change below according to your LAN connection. Eg. to if "Ethernet " in interface:
-        if "Ethernet 2" in interface:
+        update_dropdown_ip(event=None)
+        print(ip_address_selection_val)
+        if ip_address_selection_val in interface:
             for addr in addrs:
                 # Look for an IPv4 address
                 if addr.family == socket.AF_INET:
@@ -100,7 +104,7 @@ def get_ethernet_ip():
                     print(f"PORT: {PORT}")
                     return addr.address
                 else:
-                    print("Check your ethernet connection")  
+                    print("Check your ethernet connection")
 
 def server_thread_func(stop_event):
     global connection_established, client_connection
@@ -117,25 +121,12 @@ def server_thread_func(stop_event):
                 
                 print(type(IP_ADDRESS))
                 print (f"Server listening on {IP_ADDRESS}:{PORT}")    
-                server_label.config(text="Server Status: Waiting for Socket Connection")
-
+                server_label.config(text="Server Status: Connected")
 
                 conn, addr = sock.accept()
                 client_connection = conn
                 connection_established = True
-
-                print(f"Connected by {addr}")
-                server_label.config(text="Server Status: Connected")
                 update_gui_from_server
-
-                    # while True:
-                        
-                        # data = client_connection.recv(1024)
-                        # if not data:
-                        #     break
-                        # # print(f"Received: {data.decode()}")
-                        # client_connection.sendall(b"Main response!")
-                        # message_queue.put(f"Received from client: {data.decode()}")  # Put message into the queue for GUI
                         
             except Exception as e:
                 update_server_status("(Error) Read terminal for details")
@@ -369,10 +360,6 @@ def update_canvas():
     except ValueError:
         print("Invalid input! Please enter ,m a valid number.")
         pallet_length = 50  
-    
-    # TODO Khairul to add validation for pellet width/length
-    # validate_pallet_width_input(pallet_width)
-    # validate_pallet_length_input(pallet_length)
 
     draw_pallet_and_boxes(pallet_width, pallet_length, layers[current_layer])
 
@@ -402,7 +389,6 @@ def on_press(event):
     update_canvas()
 
 # Event for mouse drag
-# Works
 def on_motion(event):
     global dragging_box
     if dragging_box is None:
@@ -550,6 +536,8 @@ def current_list_check():
 def update_all_dropdown():
     update_dropdown_selection(event=None)
     update_dropdown_action(event=None)
+    update_dropdown_ip(event=None)
+    
 
 def update_dropdown_action(event):
     global curr_action_dropdown_val
@@ -567,11 +555,13 @@ def update_dropdown_selection(event):
     curr_selection_dropdown_val = box_dropdown_selection.get()
 
 # IP Address
-ttk.Label(root, text="Your IPV4 Address:").grid(row=IP_ADDRESS_1, column=COLUMN_0)
-ip_address_entry = tk.Entry(root)
-ip_address_entry.grid(row=IP_ADDRESS_1, column=COLUMN_1)
-ip_address = get_ethernet_ip()
-ip_address_entry.insert(0, f"{ip_address}")
+# IP_dropdown
+
+ttk.Label(root, text="Select the Ethernet Port: ").grid(row=IP_ADDRESS_1, column=COLUMN_0)
+ip_dropdown_selection = ttk.Combobox(root)
+ip_dropdown_selection.grid(row=IP_ADDRESS_1, column=COLUMN_1)
+ip_dropdown_selection.bind("<<ComboboxSelected>>", update_dropdown_ip)
+update_dropdown_ip(event=None)
 
 # Connect to Robot 
 ttk.Button(root, text="Connect", command=set_server_connection).grid(row=IP_ADDRESS_1, column=COLUMN_3)  
@@ -598,7 +588,6 @@ ttk.Label(root, text="Select Box Index").grid(row=BOX_WIDTH, column=COLUMN_2)
 box_dropdown_selection = ttk.Combobox(root)
 box_dropdown_selection.grid(row=BOX_LENGTH, column=COLUMN_2)
 box_dropdown_selection.bind("<<ComboboxSelected>>", update_dropdown_selection)
-
 
 ## Action for Box selection
 ttk.Label(root, text="Action for Box Index").grid(row=BOX_WIDTH, column=COLUMN_3)
@@ -679,12 +668,12 @@ fig.canvas.mpl_connect("motion_notify_event", on_motion)
 fig.canvas.mpl_connect("button_release_event", on_release)
 
 # Bind the window close event to on_closing
-# root.protocol("WM_DELETE_WINDOW", lambda: on_closing(stop_event))  # Properly close when the window is closed
-# try:
-#     polling_mainloop()
-# except KeyboardInterrupt:
-#     print("Program interrupted, exiting gracefully...")
-#     root.quit()  # Ensure mainloop is stopped gracefully
+root.protocol("WM_DELETE_WINDOW", lambda: on_closing(stop_event))  # Properly close when the window is closed
+try:
+    polling_mainloop()
+except KeyboardInterrupt:
+    print("Program interrupted, exiting gracefully...")
+    root.quit()  # Ensure mainloop is stopped gracefully
 
 
 update_canvas()
