@@ -206,7 +206,7 @@ def send_all_pose_to_robot():
                 count = len(layers[current_layer])
                 print(box_center_y)
                 print("Total number of Boxes: " + str(count))
-                data_list.append([count, box_id, (box_center_x/1000), (box_center_y/1000), box_angle, box_height, box_layer])
+                data_list.append([count, box_id, (box_center_x/1000), (box_center_y/1000), box_angle, (box_height/1000), box_layer])
 
                 print("DATA LIST")
                 print(data_list)
@@ -234,7 +234,7 @@ def send_selected_pose_to_robot(selected_index, action_selected):
                         box_center_x = float(round(box.x + box.width / 2, 2))
                         box_center_y = float(round(box.y + box.length / 2, 2))
                         
-                        data_list.append([count, box_id, (box_center_x/1000), (box_center_y/1000), box_angle, box_height, box_layer])
+                        data_list.append([count, box_id, (box_center_x/1000), (box_center_y/1000), box_angle, (box_height/1000), box_layer])
 
                         print("DATA LIST")
                         print(data_list)
@@ -258,7 +258,7 @@ def send_selected_pose_to_robot(selected_index, action_selected):
                         box_center_x = float(round(box.x + box.width / 2, 2))
                         box_center_y = float(round(box.y + box.length / 2, 2))
                         
-                        data_list.append([count, box_id, (box_center_x/1000), (box_center_y/1000), box_angle, box_height, box_layer])
+                        data_list.append([count, box_id, (box_center_x/1000), (box_center_y/1000), box_angle, (box_height/1000), box_layer])
 
                         print("DATA LIST")
                         print(data_list)
@@ -430,9 +430,9 @@ def add_box():
                          for box in layer if box)
         new_height = int(box_height_entry.get()) + max_height
     else:
-        new_height = int(box_height_entry.get())
+        new_height = 0
 
-    new_box = Box(10, 10, new_width, new_length, new_height, box_id, angle, current_layer)
+    new_box = Box(pallet_width + 5, 10, new_width, new_length, new_height, box_id, angle, current_layer)
     layers[current_layer].append(new_box)
     print(new_box)    
     update_all_dropdown()
