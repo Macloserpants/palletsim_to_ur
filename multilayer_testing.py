@@ -342,14 +342,14 @@ def draw_pallet_and_boxes(pallet_width, pallet_length, boxes):
     #Layers and number of pallets
     ax.text(pallet_width / 2, pallet_length + 5, f'Layer {current_layer}', fontsize=12, ha='center', va='center', color='green')
 
-    ax.set_xlim(0, pallet_width + 10)
+    ax.set_xlim(0, pallet_width + 100)
     ax.set_ylim(0, pallet_length + 10)
     ax.set_aspect('equal')
     canvas.draw()
 
 # FN to update Pallet
 def update_canvas():
-    global layers
+    global layers, pallet_width
     try:
         pallet_width = int(pallet_width_entry.get())
     except ValueError:
@@ -477,10 +477,10 @@ def rotate_box_clockwise():
 def jog_box(dx, dy):
     global layers, selected_box
     if selected_box is not None:
-        x, y, width, length, angle = layers[current_layer][selected_box]
-
-        # apply jog data in global space relative to pallet
-        layers[current_layer][selected_box] = (x + dx, y + dy, width, length, angle)
+        for box in layers[current_layer]:
+            if box.id == selected_box:
+                box.x = box.x + dx
+                box.y = box.y + dy
         update_canvas()
 
 # FN for jogging buttons
@@ -512,6 +512,9 @@ def previous_layer():
     global current_layer
     if current_layer > 0:
         current_layer -= 1
+    else:
+        print("This is the lowest layer")
+    
     update_canvas()
 
 # Fn add new layer
@@ -632,12 +635,10 @@ ttk.Label(root, text="Rotation Value (deg)").grid(row=ROTATE_VALUE, column=COLUM
 box_angle_entry = tk.Entry(root)
 box_angle_entry.insert(0, "10")
 box_angle_entry.grid(row=ROTATE_VALUE, column=COLUMN_3)
-
-ttk.Button(root, text="Add Box", command=add_box).grid(row=ADD_DELETE_BOX_ROW, column=COLUMN_0)
-ttk.Button(root, text="Delete Box", command=delete_box).grid(row=ADD_DELETE_BOX_ROW, column=COLUMN_1)
 ttk.Button(root, text="Rotate Box Anti-clockwise", command=rotate_box_anticlockwise).grid(row=ROTATE_BOX, column=COLUMN_2)
 ttk.Button(root, text="Rotate Box Clockwise", command=rotate_box_clockwise).grid(row=ROTATE_BOX, column=COLUMN_3)
 
+## Manual Jogging
 ttk.Label(root, text="Jog Distance").grid(row=JOG_DISTANCE, column=COLUMN_0)
 jog_distance_entry = tk.Entry(root)
 jog_distance_entry.insert(0, "10")
@@ -649,6 +650,11 @@ ttk.Button(root, text="Jog Down", command=jog_down).grid(row=JOG_DOWN_LEFT_ROW, 
 ttk.Button(root, text="Jog Left", command=jog_left).grid(row=JOG_DOWN_LEFT_ROW, column=COLUMN_1)
 
 
+## Add/Delete Box
+ttk.Button(root, text="Add Box", command=add_box).grid(row=ADD_DELETE_BOX_ROW, column=COLUMN_0)
+ttk.Button(root, text="Delete Box", command=delete_box).grid(row=ADD_DELETE_BOX_ROW, column=COLUMN_1)
+
+
 # Button for layers
 ttk.Button(root, text="Add Layer", command=add_layer).grid(row=ADD_DELETE_LAYER, column=COLUMN_0)
 ttk.Button(root, text="Delete Layer", command=delete_layer).grid(row=ADD_DELETE_LAYER, column=COLUMN_1)
@@ -657,7 +663,7 @@ ttk.Button(root, text="Previous Layer", command=previous_layer).grid(row=NEXT_PR
 ttk.Button(root, text="Next Layer", command=next_layer).grid(row=NEXT_PREVIOUS_LAYER, column=COLUMN_1)
 
 
-fig, ax = plt.subplots()
+fig, ax = plt.subplots(figsize=(10, 6))
 canvas = FigureCanvasTkAgg(fig, master=root)
 canvas.draw()
 canvas.get_tk_widget().grid(row=GRID_LAYOUT, column=COLUMN_0, columnspan=COLUMN_2)
