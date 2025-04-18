@@ -49,9 +49,9 @@ COLUMN_2 = 2
 COLUMN_3 = 3
 
 dragging_box = None
+selected_box = None
 offset_x = 0
 offset_y = 0
-selected_box = None
 current_layer = 1
 
 layers = [None, []]
@@ -66,6 +66,8 @@ client_connection = None
 
 # main window
 root = tk.Tk()
+root.resizable(True, True)
+
 root.title("Pallet and Boxes")
 
 def on_closing(stop_event):
@@ -80,7 +82,7 @@ def polling_mainloop():
     # Should update dropdown once after every action OR continuous polling (?) 
     # Most original functions in code are all currently updated after every action. This polling mainloop overrides.
     update_canvas()
-    root.after(500, polling_mainloop)  # Keep checking the message queue every 100ms
+    root.after(1000, polling_mainloop)  # Keep checking the message queue every 100ms
 
 # IP_dropdown1
 def update_dropdown_ip(event):
@@ -206,7 +208,7 @@ def send_all_pose_to_robot():
                 count = len(layers[current_layer])
                 print(box_center_y)
                 print("Total number of Boxes: " + str(count))
-                data_list.append([count, box_id, (box_center_x/1000), (box_center_y/1000), box_angle, (box_height/1000), box_layer])
+                data_list.append([count, box_id, (box_center_x/1000), (box_center_y/1000), box_angle, ((box_height+ 20)/1000), box_layer])
 
                 print("DATA LIST")
                 print(data_list)
@@ -234,7 +236,7 @@ def send_selected_pose_to_robot(selected_index, action_selected):
                         box_center_x = float(round(box.x + box.width / 2, 2))
                         box_center_y = float(round(box.y + box.length / 2, 2))
                         
-                        data_list.append([count, box_id, (box_center_x/1000), (box_center_y/1000), box_angle, (box_height/1000), box_layer])
+                        data_list.append([count, box_id, (box_center_x/1000), (box_center_y/1000), box_angle, ((box_height+ 20)/1000), box_layer])
 
                         print("DATA LIST")
                         print(data_list)
@@ -258,7 +260,7 @@ def send_selected_pose_to_robot(selected_index, action_selected):
                         box_center_x = float(round(box.x + box.width / 2, 2))
                         box_center_y = float(round(box.y + box.length / 2, 2))
                         
-                        data_list.append([count, box_id, (box_center_x/1000), (box_center_y/1000), box_angle, (box_height/1000), box_layer])
+                        data_list.append([count, box_id, (box_center_x/1000), (box_center_y/1000), box_angle, ((box_height+ 20)/1000), box_layer])
 
                         print("DATA LIST")
                         print(data_list)
@@ -314,8 +316,12 @@ def box_hits_pallet_border(box, pallet_width, pallet_length):
 #FN to draw pallet and boxes
 def draw_pallet_and_boxes(pallet_width, pallet_length, boxes):
     global ax
-    ax.clear()
+    
+    width_fig_scale = 2
+    length_fig_scale = 10
 
+    ax.clear()
+    
     #Draw pallet
     ax.add_patch(plt.Rectangle((0, 0), pallet_width, pallet_length, edgecolor='black', facecolor='tan'))
 
@@ -336,20 +342,23 @@ def draw_pallet_and_boxes(pallet_width, pallet_length, boxes):
         #Annotate box
         center_x = x + width / 2
         center_y = y + length / 2
-        ax.text(center_x, center_y, str(id), color='black', fontsize=10, ha='center', va='bottom', rotation=0)
-        ax.text(center_x, center_y, f'({center_x:.1f}, {center_y:.1f})', color='black', fontsize=8, ha='center', va='top', rotation=0)
+        line_spacing = 4
+
+        ax.text(center_x, center_y + line_spacing, str(id), color='black', fontsize=9, ha='center', va='bottom', rotation=0)
+        ax.text(center_x, center_y, f'({center_x:.1f}, {center_y:.1f})', color='black', fontsize=8, ha='center', va='center', rotation=0)
+        ax.text(center_x, center_y - line_spacing, f'({box.angle:.1f})', color='black', fontsize=8, ha='center', va='top', rotation=0)
 
     #Layers and number of pallets
     ax.text(pallet_width / 2, pallet_length + 5, f'Layer {current_layer}', fontsize=12, ha='center', va='center', color='green')
 
-    ax.set_xlim(0, pallet_width + 100)
-    ax.set_ylim(0, pallet_length + 10)
+    ax.set_xlim(0, pallet_width + (pallet_width / width_fig_scale))
+    ax.set_ylim(0, pallet_length + (pallet_length / length_fig_scale))
     ax.set_aspect('equal')
     canvas.draw()
 
 # FN to update Pallet
 def update_canvas():
-    global layers, pallet_width
+    global layers, pallet_width, pallet_length
     try:
         pallet_width = int(pallet_width_entry.get())
     except ValueError:
@@ -360,8 +369,10 @@ def update_canvas():
     except ValueError:
         print("Invalid input! Please enter ,m a valid number.")
         pallet_length = 50  
-
+    update_all_dropdown()
     draw_pallet_and_boxes(pallet_width, pallet_length, layers[current_layer])
+
+    return pallet_width, pallet_length
 
 # Event for Button press
 def on_press(event):
@@ -435,7 +446,6 @@ def add_box():
     new_box = Box(pallet_width + 5, 10, new_width, new_length, new_height, box_id, angle, current_layer)
     layers[current_layer].append(new_box)
     print(new_box)    
-    update_all_dropdown()
     update_canvas()
 
 # FN delete box
@@ -450,7 +460,7 @@ def delete_box():
 
         selected_box = None
         update_canvas()
-        update_all_dropdown()
+        
 
 # FN rotate box
 def rotate_box_anticlockwise():
@@ -461,6 +471,7 @@ def rotate_box_anticlockwise():
         for box in layers[current_layer]:
             if box.id == selected_box:
                 box.angle =  (box.angle + new_angle) % 360
+                
                 update_canvas()
 
 def rotate_box_clockwise():
@@ -471,6 +482,7 @@ def rotate_box_clockwise():
         for box in layers[current_layer]:
             if box.id == selected_box:
                 box.angle =  (box.angle - new_angle) % 360
+
                 update_canvas()
 
 # FN jog box
@@ -481,7 +493,7 @@ def jog_box(dx, dy):
             if box.id == selected_box:
                 box.x = box.x + dx
                 box.y = box.y + dy
-        update_canvas()
+    update_canvas()
 
 # FN for jogging buttons
 def jog_up():
@@ -578,12 +590,13 @@ message_out_label = ttk.Label(root, text="Waiting for message to be sent")
 message_out_label.grid(row=IP_ADDRESS_2, column=COLUMN_2)
 message_queue = queue.Queue()
 
-
-tk.Button(root, text="[Temp] Check array", command=lambda: current_list_check()).grid(row=NEXT_PREVIOUS_LAYER, column=COLUMN_2)
+#temp
+tk.Button(root, text="[Temp] Check array", command=lambda: current_list_check()).grid(row=GRID_LAYOUT, column=COLUMN_2)
 
 ############
 # Send all pallet pose to Robot
 tk.Button(root, text="Send Positions of all Boxes", command=lambda: send_all_pose_to_robot()).grid(row=IP_ADDRESS_2, column=COLUMN_3)
+
 
 # User selection for 1 box pose only or from box pose onwards 
 ## Box selection drop down
@@ -598,7 +611,8 @@ box_dropdown_action = ttk.Combobox(root)
 box_dropdown_action.grid(row=BOX_LENGTH, column=COLUMN_3)
 box_dropdown_action.bind("<<ComboboxSelected>>", update_dropdown_action)
 
-tk.Button(root, text="Execute selected Action", command=lambda: send_selected_pose_to_robot(int(curr_selection_dropdown_val), curr_action_dropdown_val)).grid(row=BOX_HEIGHT, column=COLUMN_3)
+tk.Button(root, text="Execute selected Action", 
+          command=lambda: send_selected_pose_to_robot(int(curr_selection_dropdown_val), curr_action_dropdown_val)).grid(row=BOX_HEIGHT, column=COLUMN_3)
 
 ############
 # Pallet dimensions
@@ -614,11 +628,14 @@ pallet_length_entry.grid(row=PALLET_LENGTH, column=COLUMN_1)
 
 
 ## Box Related ##
+separator = tk.Frame(root, height=1, bd=0, bg="black", relief='flat')
+separator.grid(row=BOX_WIDTH, column=COLUMN_0, columnspan=2, sticky='new', pady=(0, 5))
+
 # Input box dimensions
-ttk.Label(root, text="Box Width").grid(row=BOX_WIDTH, column=COLUMN_0)
+ttk.Label(root, text="Box Width").grid(row=BOX_WIDTH, column=COLUMN_0, padx=10, pady=5)
 box_width_entry = tk.Entry(root)
 box_width_entry.insert(0, "50")
-box_width_entry.grid(row=BOX_WIDTH, column=COLUMN_1)
+box_width_entry.grid(row=BOX_WIDTH, column=COLUMN_1, padx=10, pady=5)
 
 ttk.Label(root, text="Box Length").grid(row=BOX_LENGTH, column=COLUMN_0)
 box_length_entry = tk.Entry(root)
@@ -638,11 +655,14 @@ box_angle_entry.grid(row=ROTATE_VALUE, column=COLUMN_3)
 ttk.Button(root, text="Rotate Box Anti-clockwise", command=rotate_box_anticlockwise).grid(row=ROTATE_BOX, column=COLUMN_2)
 ttk.Button(root, text="Rotate Box Clockwise", command=rotate_box_clockwise).grid(row=ROTATE_BOX, column=COLUMN_3)
 
+separator = tk.Frame(root, height=1, bd=0, bg="black", relief='flat')
+separator.grid(row=JOG_DISTANCE, column=COLUMN_2, columnspan=2, sticky='new', pady=(0, 5))
+
 ## Manual Jogging
 ttk.Label(root, text="Jog Distance").grid(row=JOG_DISTANCE, column=COLUMN_0)
 jog_distance_entry = tk.Entry(root)
 jog_distance_entry.insert(0, "10")
-jog_distance_entry.grid(row=JOG_DISTANCE, column=COLUMN_1)
+jog_distance_entry.grid(row=JOG_DISTANCE, column=COLUMN_1, padx=10, pady=5)
 
 ttk.Button(root, text="Jog Up", command=jog_up).grid(row=JOG_UP_RIGHT_ROW, column=COLUMN_0)
 ttk.Button(root, text="Jog Right", command=jog_right).grid(row=JOG_UP_RIGHT_ROW, column=COLUMN_1)
@@ -654,10 +674,12 @@ ttk.Button(root, text="Jog Left", command=jog_left).grid(row=JOG_DOWN_LEFT_ROW, 
 ttk.Button(root, text="Add Box", command=add_box).grid(row=ADD_DELETE_BOX_ROW, column=COLUMN_0)
 ttk.Button(root, text="Delete Box", command=delete_box).grid(row=ADD_DELETE_BOX_ROW, column=COLUMN_1)
 
+separator = tk.Frame(root, height=1, bd=0, bg="black", relief='flat')
+separator.grid(row=ADD_DELETE_LAYER, column=COLUMN_0, columnspan=4, sticky='new', pady=(0, 5))
 
 # Button for layers
-ttk.Button(root, text="Add Layer", command=add_layer).grid(row=ADD_DELETE_LAYER, column=COLUMN_0)
-ttk.Button(root, text="Delete Layer", command=delete_layer).grid(row=ADD_DELETE_LAYER, column=COLUMN_1)
+ttk.Button(root, text="Add Layer", command=add_layer).grid(row=ADD_DELETE_LAYER, column=COLUMN_0, padx=10, pady=5)
+ttk.Button(root, text="Delete Layer", command=delete_layer).grid(row=ADD_DELETE_LAYER, column=COLUMN_1, padx=10, pady=5)
  
 ttk.Button(root, text="Previous Layer", command=previous_layer).grid(row=NEXT_PREVIOUS_LAYER, column=COLUMN_0)
 ttk.Button(root, text="Next Layer", command=next_layer).grid(row=NEXT_PREVIOUS_LAYER, column=COLUMN_1)
