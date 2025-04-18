@@ -571,6 +571,18 @@ def update_dropdown_selection(event):
 
 # IP Address
 # IP_dropdown
+# Col seperator
+separator = tk.Frame(root, width=1, bg="black", relief='flat')
+separator.grid(row=IP_ADDRESS_1, column=COLUMN_1, rowspan=9, sticky='nse', padx=(0, 0))
+# Row seperator
+separator = tk.Frame(root, height=1, bd=0, bg="black", relief='flat')
+separator.grid(row=PALLET_WIDTH, column=COLUMN_0, columnspan=2, sticky='new', pady=(0, 0))
+separator = tk.Frame(root, height=1, bd=0, bg="black", relief='flat')
+separator.grid(row=BOX_WIDTH, column=COLUMN_0, columnspan=2, sticky='new', pady=(0, 0))
+separator = tk.Frame(root, height=1, bd=0, bg="black", relief='flat')
+separator.grid(row=JOG_DISTANCE, column=COLUMN_2, columnspan=2, sticky='new', pady=(0, 0))
+separator = tk.Frame(root, height=1, bd=0, bg="black", relief='flat')
+separator.grid(row=ADD_DELETE_LAYER, column=COLUMN_0, columnspan=4, sticky='new', pady=(0, 0))
 
 ttk.Label(root, text="Select the Ethernet Port: ").grid(row=IP_ADDRESS_1, column=COLUMN_0)
 ip_dropdown_selection = ttk.Combobox(root)
@@ -616,10 +628,10 @@ tk.Button(root, text="Execute selected Action",
 
 ############
 # Pallet dimensions
-ttk.Label(root, text="Pallet Width").grid(row=PALLET_WIDTH, column=COLUMN_0)
+ttk.Label(root, text="Pallet Width").grid(row=PALLET_WIDTH, column=COLUMN_0, padx=10, pady=5)
 pallet_width_entry = tk.Entry(root)
 pallet_width_entry.insert(0, "200")
-pallet_width_entry.grid(row=PALLET_WIDTH, column=COLUMN_1)
+pallet_width_entry.grid(row=PALLET_WIDTH, column=COLUMN_1, padx=10, pady=5)
 
 ttk.Label(root, text="Pallet length").grid(row=PALLET_LENGTH, column=COLUMN_0)
 pallet_length_entry = tk.Entry(root)
@@ -628,8 +640,6 @@ pallet_length_entry.grid(row=PALLET_LENGTH, column=COLUMN_1)
 
 
 ## Box Related ##
-separator = tk.Frame(root, height=1, bd=0, bg="black", relief='flat')
-separator.grid(row=BOX_WIDTH, column=COLUMN_0, columnspan=2, sticky='new', pady=(0, 5))
 
 # Input box dimensions
 ttk.Label(root, text="Box Width").grid(row=BOX_WIDTH, column=COLUMN_0, padx=10, pady=5)
@@ -655,9 +665,6 @@ box_angle_entry.grid(row=ROTATE_VALUE, column=COLUMN_3)
 ttk.Button(root, text="Rotate Box Anti-clockwise", command=rotate_box_anticlockwise).grid(row=ROTATE_BOX, column=COLUMN_2)
 ttk.Button(root, text="Rotate Box Clockwise", command=rotate_box_clockwise).grid(row=ROTATE_BOX, column=COLUMN_3)
 
-separator = tk.Frame(root, height=1, bd=0, bg="black", relief='flat')
-separator.grid(row=JOG_DISTANCE, column=COLUMN_2, columnspan=2, sticky='new', pady=(0, 5))
-
 ## Manual Jogging
 ttk.Label(root, text="Jog Distance").grid(row=JOG_DISTANCE, column=COLUMN_0)
 jog_distance_entry = tk.Entry(root)
@@ -673,9 +680,6 @@ ttk.Button(root, text="Jog Left", command=jog_left).grid(row=JOG_DOWN_LEFT_ROW, 
 ## Add/Delete Box
 ttk.Button(root, text="Add Box", command=add_box).grid(row=ADD_DELETE_BOX_ROW, column=COLUMN_0)
 ttk.Button(root, text="Delete Box", command=delete_box).grid(row=ADD_DELETE_BOX_ROW, column=COLUMN_1)
-
-separator = tk.Frame(root, height=1, bd=0, bg="black", relief='flat')
-separator.grid(row=ADD_DELETE_LAYER, column=COLUMN_0, columnspan=4, sticky='new', pady=(0, 5))
 
 # Button for layers
 ttk.Button(root, text="Add Layer", command=add_layer).grid(row=ADD_DELETE_LAYER, column=COLUMN_0, padx=10, pady=5)
