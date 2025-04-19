@@ -3,6 +3,7 @@ from tkinter import ttk
 
 import numpy as np
 
+import copy
 import socket
 import threading
 import queue
@@ -37,10 +38,10 @@ JOG_DISTANCE = 9
 JOG_UP_RIGHT_ROW = 10
 JOG_DOWN_LEFT_ROW = 11
 
-ADD_DELETE_LAYER = 12
-NEXT_PREVIOUS_LAYER = 13
+ADD_DELETE_LAYER = 14
+NEXT_PREVIOUS_LAYER = 15
 
-GRID_LAYOUT = 14
+GRID_LAYOUT = 16
 
 # Column
 COLUMN_0 = 0
@@ -57,8 +58,8 @@ current_layer = 1
 layers = [None, []]
 
 ip_address_selection_val = None
-curr_action_dropdown_val = None
-curr_selection_dropdown_val = None
+curr_index_action_dropdown_val = None
+curr_index_selection_dropdown_val = None
 
 stop_event = threading.Event()
 connection_established = False
@@ -192,65 +193,68 @@ def threaded_send_and_wait(client_connection, data):
     else:
         print("No response received, skipping box.")
     
-def send_all_pose_to_robot():
+def send_all_pose_to_robot(allpose_action_index):
     global connection_established, client_connection
 
     if connection_established and client_connection:
-        try:
-            for box in layers[current_layer]:
-                data_list = []
-                box_id = box.id
-                box_angle = box.angle
-                box_height = box.height
-                box_layer = box.layer
-                box_center_x = float(round(box.x + box.width / 2, 2))
-                box_center_y = float(round(box.y + box.length / 2, 2))
-                count = len(layers[current_layer])
-                print(box_center_y)
-                print("Total number of Boxes: " + str(count))
-                data_list.append([count, box_id, (box_center_x/1000), (box_center_y/1000), box_angle, ((box_height+ 20)/1000), box_layer])
-
-                print("DATA LIST")
-                print(data_list)
-
-                response = send_and_wait_for_response(client_connection, data_list)
-
-        except Exception as e:
-            print(f"Error sending data: {str(e)}")
-            update_server_status("Server Status: (Error) Failed to send data")
-
-def send_selected_pose_to_robot(selected_index, action_selected):
-    global connection_established, client_connection
-    
-    if connection_established and client_connection:
-        if curr_action_dropdown_val == 1:
+        if allpose_action_index == 1:
             try:
                 for box in layers[current_layer]:
-                    if box.id == selected_index:
-                        data_list = []
-                        count = len(layers[current_layer])
-                        box_id = box.id
-                        box_angle = box.angle
-                        box_height = box.height
-                        box_layer = box.layer
-                        box_center_x = float(round(box.x + box.width / 2, 2))
-                        box_center_y = float(round(box.y + box.length / 2, 2))
-                        
-                        data_list.append([count, box_id, (box_center_x/1000), (box_center_y/1000), box_angle, ((box_height+ 20)/1000), box_layer])
+                    data_list = []
+                    box_id = box.id
+                    box_angle = box.angle
+                    box_height = box.height
+                    box_layer = box.layer
+                    box_center_x = float(round(box.x + box.width / 2, 2))
+                    box_center_y = float(round(box.y + box.length / 2, 2))
+                    count = len(layers[current_layer])
 
-                        print("DATA LIST")
-                        print(data_list)
+                    print("Total number of Boxes in this layer: " + str(count))
+                    data_list.append([count, box_id, (box_center_x/1000), (box_center_y/1000), box_angle, ((box_height+ 20)/1000), box_layer])
 
-                        response = send_and_wait_for_response(client_connection, data_list)
+                    print("DATA LIST")
+                    print(data_list)
+
+                    send_and_wait_for_response(client_connection, data_list)
 
             except Exception as e:
                 print(f"Error sending data: {str(e)}")
                 update_server_status("Server Status: (Error) Failed to send data")
 
-        elif curr_action_dropdown_val == 2:
+    if allpose_action_index == 2:
+            try:
+                all_boxes = [box for boxes in layers.values() for box in boxes]
+                count = len(all_boxes)
+                
+                for box in layers[current_layer]:
+                    data_list = []
+                    box_id = box.id
+                    box_angle = box.angle
+                    box_height = box.height
+                    box_layer = box.layer
+                    box_center_x = float(round(box.x + box.width / 2, 2))
+                    box_center_y = float(round(box.y + box.length / 2, 2))
+
+                    print("Total number of Boxes in all layers: " + str(count))
+                    data_list.append([count, box_id, (box_center_x/1000), (box_center_y/1000), box_angle, ((box_height+ 20)/1000), box_layer])
+
+                    print("DATA LIST")
+                    print(data_list)
+
+                    send_and_wait_for_response(client_connection, data_list)
+
+            except Exception as e:
+                print(f"Error sending data: {str(e)}")
+                update_server_status("Server Status: (Error) Failed to send data")
+
+def send_selected_pose_to_robot(boxes_selection_index, boxes_action_index):
+    global connection_established, client_connection
+    
+    if connection_established and client_connection:
+        if boxes_action_index == 1:
             try:
                 for box in layers[current_layer]:
-                    if box.id >= selected_index:
+                    if box.id == boxes_selection_index:
                         data_list = []
                         count = len(layers[current_layer])
                         box_id = box.id
@@ -265,7 +269,31 @@ def send_selected_pose_to_robot(selected_index, action_selected):
                         print("DATA LIST")
                         print(data_list)
 
-                        response = send_and_wait_for_response(client_connection, data_list)
+                        send_and_wait_for_response(client_connection, data_list)
+
+            except Exception as e:
+                print(f"Error sending data: {str(e)}")
+                update_server_status("Server Status: (Error) Failed to send data")
+
+        elif boxes_action_index == 2:
+            try:
+                for box in layers[current_layer]:
+                    if box.id >= boxes_selection_index:
+                        data_list = []
+                        count = len(layers[current_layer])
+                        box_id = box.id
+                        box_angle = box.angle
+                        box_height = box.height
+                        box_layer = box.layer
+                        box_center_x = float(round(box.x + box.width / 2, 2))
+                        box_center_y = float(round(box.y + box.length / 2, 2))
+                        
+                        data_list.append([count, box_id, (box_center_x/1000), (box_center_y/1000), box_angle, ((box_height+ 20)/1000), box_layer])
+
+                        print("DATA LIST")
+                        print(data_list)
+
+                        send_and_wait_for_response(client_connection, data_list)
 
             except Exception as e:
                 print(f"Error sending data: {str(e)}")
@@ -436,10 +464,19 @@ def add_box():
     box_id = len(layers[current_layer]) + 1 # + 1 because it starts from 0 instead of 1
 
     if current_layer > 1:
-        max_height = max(box.height 
-                         for layer in layers[:current_layer] if layer 
-                         for box in layer if box)
-        new_height = int(box_height_entry.get()) + max_height
+            try:
+                max_height = max(
+                    box.height for layer in layers[:current_layer] if layer 
+                       for box in layer if box
+        )
+            except ValueError:
+                update_server_status("No boxes found in previous layers.")
+                max_height = 0
+        # max_height = max(box.height 
+        #                  for layer in layers[:current_layer] if layer 
+        #                  for box in layer if box)
+            new_height = int(box_height_entry.get()) + max_height
+            
     else:
         new_height = 0
 
@@ -532,42 +569,75 @@ def previous_layer():
 # Fn add new layer
 def add_layer():
     global layers, current_layer
+
     layers.append([])
     current_layer = len(layers) - 1
     update_canvas()
 
 def delete_layer():
     global layers, current_layer
+
     layers.pop(current_layer)
     current_layer = len(layers) - 1
     print(layers[current_layer])
     update_canvas()
 
+# Duplicate current layer
+def duplicate_current_layer():
+    global layers, current_layer
+    layers.append(copy.deepcopy(layers[current_layer]))
+
+    current_layer = len(layers) - 1
+    print(layers[current_layer])  # See what's in the layer
+    print(len(layers))
+
+    update_canvas()
+
 # Test check list
 def current_list_check():
+    print(layers[current_layer])  # See what's in the layer
     print(str(layers[current_layer]) + "Box Midpoints")
     print(type(layers[current_layer]))
 
 def update_all_dropdown():
-    update_dropdown_selection(event=None)
-    update_dropdown_action(event=None)
+    update_index_dropdown_selection(event=None)
+    update_index_dropdown_action(event=None)
+    update_allpose_dropdown_action(event=None)
     update_dropdown_ip(event=None)
     
 
-def update_dropdown_action(event):
-    global curr_action_dropdown_val
+def update_allpose_dropdown_action(event):
 
-    box_dropdown_action['values'] = ['Send Index pose only', 'Send all pose from Index onwards']
-    if box_dropdown_action.get() == 'Send Index pose only':
-            curr_action_dropdown_val = 1
-    elif box_dropdown_action.get() == 'Send all pose from Index onwards':
-            curr_action_dropdown_val = 2        
+    allpose_dropdown_action['values'] = ['This layer only', 'All layers']
+    allpose_dropdown_action_val = box_index_dropdown_action.get()
+
+    if allpose_dropdown_action_val == 'This layer only':
+            return 1
+    elif allpose_dropdown_action_val == 'All layers':
+            return 2
+
+def update_index_dropdown_action(event):
+
+    box_index_dropdown_action['values'] = ['Selected box only', 'Selected box onwards']
+    index_selected_action = box_index_dropdown_action.get()
+
+    if index_selected_action == 'Selected box only':
+            return 1
+    elif index_selected_action == 'Selected box onwards':
+            return 2
             
-def update_dropdown_selection(event):
-    global curr_selection_dropdown_val
+def update_index_dropdown_selection(event):
 
-    box_dropdown_selection['values'] = [box.id for box in layers[current_layer]]  # Updated values
-    curr_selection_dropdown_val = box_dropdown_selection.get()
+    box_ids = [box.id for box in layers[current_layer]]
+    if not box_ids:
+        update_server_status(f"No boxes found in layer {current_layer}")
+        box_index_dropdown_selection['values'] = ["No boxes available"]
+        box_index_dropdown_selection.set("No boxes available")
+    
+    box_index_dropdown_selection['values'] = [box.id for box in layers[current_layer]]  # Updated values
+    index_selected_box = box_index_dropdown_selection.get()
+    
+    return index_selected_box
 
 # IP Address
 # IP_dropdown
@@ -588,7 +658,7 @@ ttk.Label(root, text="Select the Ethernet Port: ").grid(row=IP_ADDRESS_1, column
 ip_dropdown_selection = ttk.Combobox(root)
 ip_dropdown_selection.grid(row=IP_ADDRESS_1, column=COLUMN_1)
 ip_dropdown_selection.bind("<<ComboboxSelected>>", update_dropdown_ip)
-update_dropdown_ip(event=None)
+
 
 # Connect to Robot 
 ttk.Button(root, text="Connect", command=set_server_connection).grid(row=IP_ADDRESS_1, column=COLUMN_3)  
@@ -602,29 +672,38 @@ message_out_label = ttk.Label(root, text="Waiting for message to be sent")
 message_out_label.grid(row=IP_ADDRESS_2, column=COLUMN_2)
 message_queue = queue.Queue()
 
+# tk.Button(root, text="[Temp] Check array", command=lambda: current_list_check()).grid(row=GRID_LAYOUT, column=COLUMN_2)
 #temp
-tk.Button(root, text="[Temp] Check array", command=lambda: current_list_check()).grid(row=GRID_LAYOUT, column=COLUMN_2)
+tk.Button(root, text="[Temp] Check array", command=lambda: current_list_check()).grid(row=GRID_LAYOUT, column=COLUMN_3)
 
 ############
 # Send all pallet pose to Robot
-tk.Button(root, text="Send Positions of all Boxes", command=lambda: send_all_pose_to_robot()).grid(row=IP_ADDRESS_2, column=COLUMN_3)
 
+ttk.Label(root, text="Action for Box Layers").grid(row=PALLET_WIDTH, column=COLUMN_2)
+allpose_dropdown_action = ttk.Combobox(root)
+allpose_dropdown_action.grid(row=PALLET_WIDTH, column=COLUMN_3)
+all_pose_action_val = allpose_dropdown_action.bind("<<ComboboxSelected>>", update_allpose_dropdown_action)
+
+tk.Button(root, text="Execute Box Layers Action", 
+          command=lambda: send_all_pose_to_robot(all_pose_action_val)).grid(row=PALLET_LENGTH, column=COLUMN_3)
 
 # User selection for 1 box pose only or from box pose onwards 
 ## Box selection drop down
 ttk.Label(root, text="Select Box Index").grid(row=BOX_WIDTH, column=COLUMN_2)
-box_dropdown_selection = ttk.Combobox(root)
-box_dropdown_selection.grid(row=BOX_LENGTH, column=COLUMN_2)
-box_dropdown_selection.bind("<<ComboboxSelected>>", update_dropdown_selection)
+box_index_dropdown_selection = ttk.Combobox(root)
+box_index_dropdown_selection.grid(row=BOX_LENGTH, column=COLUMN_2)
+
+box_index_selection_val = box_index_dropdown_selection.bind("<<ComboboxSelected>>", update_index_dropdown_selection)
 
 ## Action for Box selection
 ttk.Label(root, text="Action for Box Index").grid(row=BOX_WIDTH, column=COLUMN_3)
-box_dropdown_action = ttk.Combobox(root)
-box_dropdown_action.grid(row=BOX_LENGTH, column=COLUMN_3)
-box_dropdown_action.bind("<<ComboboxSelected>>", update_dropdown_action)
+box_index_dropdown_action = ttk.Combobox(root)
+box_index_dropdown_action.grid(row=BOX_LENGTH, column=COLUMN_3)
 
-tk.Button(root, text="Execute selected Action", 
-          command=lambda: send_selected_pose_to_robot(int(curr_selection_dropdown_val), curr_action_dropdown_val)).grid(row=BOX_HEIGHT, column=COLUMN_3)
+box_index_action_val = box_index_dropdown_action.bind("<<ComboboxSelected>>", update_index_dropdown_action)
+
+tk.Button(root, text="Execute Box Index Action", 
+          command=lambda: send_selected_pose_to_robot(box_index_selection_val, box_index_action_val)).grid(row=BOX_HEIGHT, column=COLUMN_3)
 
 ############
 # Pallet dimensions
@@ -640,6 +719,10 @@ pallet_length_entry.grid(row=PALLET_LENGTH, column=COLUMN_1)
 
 
 ## Box Related ##
+
+## Add/Delete Box
+ttk.Button(root, text="Add Box", command=add_box).grid(row=ADD_DELETE_BOX_ROW, column=COLUMN_0)
+ttk.Button(root, text="Delete Box", command=delete_box).grid(row=ADD_DELETE_BOX_ROW, column=COLUMN_1)
 
 # Input box dimensions
 ttk.Label(root, text="Box Width").grid(row=BOX_WIDTH, column=COLUMN_0, padx=10, pady=5)
@@ -657,14 +740,6 @@ box_height_entry = tk.Entry(root)
 box_height_entry.insert(0, "30")
 box_height_entry.grid(row=BOX_HEIGHT, column=COLUMN_1)
 
-# Box Rotation
-ttk.Label(root, text="Rotation Value (deg)").grid(row=ROTATE_VALUE, column=COLUMN_2)
-box_angle_entry = tk.Entry(root)
-box_angle_entry.insert(0, "10")
-box_angle_entry.grid(row=ROTATE_VALUE, column=COLUMN_3)
-ttk.Button(root, text="Rotate Box Anti-clockwise", command=rotate_box_anticlockwise).grid(row=ROTATE_BOX, column=COLUMN_2)
-ttk.Button(root, text="Rotate Box Clockwise", command=rotate_box_clockwise).grid(row=ROTATE_BOX, column=COLUMN_3)
-
 ## Manual Jogging
 ttk.Label(root, text="Jog Distance").grid(row=JOG_DISTANCE, column=COLUMN_0)
 jog_distance_entry = tk.Entry(root)
@@ -676,18 +751,30 @@ ttk.Button(root, text="Jog Right", command=jog_right).grid(row=JOG_UP_RIGHT_ROW,
 ttk.Button(root, text="Jog Down", command=jog_down).grid(row=JOG_DOWN_LEFT_ROW, column=COLUMN_0)
 ttk.Button(root, text="Jog Left", command=jog_left).grid(row=JOG_DOWN_LEFT_ROW, column=COLUMN_1)
 
+# TODO
+# ttk.Button(root, text="Flush_all_boxes_left", command=flush_all_boxes_left).grid(row=JOG_DOWN_LEFT_ROW, column=COLUMN_1)
+# ttk.Button(root, text="Flush_all_boxes_bottom", command=flush_all_boxes_bottom).grid(row=JOG_DOWN_LEFT_ROW, column=COLUMN_1)
 
-## Add/Delete Box
-ttk.Button(root, text="Add Box", command=add_box).grid(row=ADD_DELETE_BOX_ROW, column=COLUMN_0)
-ttk.Button(root, text="Delete Box", command=delete_box).grid(row=ADD_DELETE_BOX_ROW, column=COLUMN_1)
+# Box Rotation
+ttk.Label(root, text="Rotation Value (deg)").grid(row=ROTATE_VALUE, column=COLUMN_2)
+box_angle_entry = tk.Entry(root)
+box_angle_entry.insert(0, "10")
+box_angle_entry.grid(row=ROTATE_VALUE, column=COLUMN_3)
+ttk.Button(root, text="Rotate Box Anti-clockwise", command=rotate_box_anticlockwise).grid(row=ROTATE_BOX, column=COLUMN_2)
+ttk.Button(root, text="Rotate Box Clockwise", command=rotate_box_clockwise).grid(row=ROTATE_BOX, column=COLUMN_3)
+
 
 # Button for layers
 ttk.Button(root, text="Add Layer", command=add_layer).grid(row=ADD_DELETE_LAYER, column=COLUMN_0, padx=10, pady=5)
 ttk.Button(root, text="Delete Layer", command=delete_layer).grid(row=ADD_DELETE_LAYER, column=COLUMN_1, padx=10, pady=5)
- 
 ttk.Button(root, text="Previous Layer", command=previous_layer).grid(row=NEXT_PREVIOUS_LAYER, column=COLUMN_0)
 ttk.Button(root, text="Next Layer", command=next_layer).grid(row=NEXT_PREVIOUS_LAYER, column=COLUMN_1)
+ttk.Button(root, text="Duplicate Current Layer", command=duplicate_current_layer).grid(row=NEXT_PREVIOUS_LAYER, column=COLUMN_2)
 
+# jump_to_layer = ttk.Combobox(root)
+# jump_to_layer.grid(row=BOX_LENGTH, column=COLUMN_3)
+
+# box_index_action_val = box_index_dropdown_action.bind("<<ComboboxSelected>>", update_index_dropdown_action)
 
 fig, ax = plt.subplots(figsize=(10, 6))
 canvas = FigureCanvasTkAgg(fig, master=root)
