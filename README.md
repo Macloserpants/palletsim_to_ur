@@ -20,8 +20,9 @@ A simple simulation application for executing palletizing tasks with steps to in
      - [2.2.2 Adding and Customizing Box Dimensions](#222-adding-and-customizing-box-dimensions)  
      - [2.2.3 Layers](#223-layers)  
      - [2.2.4 Send Box Pose](#224-send-box-pose)  
-       - [2.2.4.1 Poses of All Boxes in Current Layer](#2241-poses-of-all-boxes-in-current-layer)  
-       - [2.2.4.2 Poses of Certain Boxes in Current Layer](#2242-poses-of-certain-boxes-in-current-layer)  
+         - [2.2.4.1 Open Connection between PC and UR Cobot](#2241-open-connection-between-pc-and-ur-cobot)
+       - [2.2.4.2 Poses of All Boxes in Current Layer](#2242-poses-of-all-boxes-in-current-layer)  
+       - [2.2.4.3 Poses of Certain Boxes in Current Layer](#2243-poses-of-certain-boxes-in-current-layer)   
 3. [Steps to Use the Application on UR Robot](#3-steps-to-use-the-application-on-ur-robot)  
    - [3.1 Creation of Plane-feature](#31-creation-of-plane-feature)  
    - [3.2 Approach and Exit Points](#32-approach-and-exit-points)  
@@ -153,33 +154,110 @@ cd path/to/project
 python multilayer_testing.py
 ```
 
-#### 2.2.1 Get PC IP Address
-To add pictures
+### 2.2.1 Get PC IP Address  
+From the dropdown, select the correct **Ethernet interface** that is connected to the robot.  
 
-#### 2.2.2 Adding and Customizing Box Dimensions
-To add pictures
+---
 
-#### Layers
-To add pictures
+### 2.2.2 Adding & Customizing Box Dimensions  
 
-#### Send Box Pose
+This section mentions how you can define the dimensions of the Box/Object that the robot will pick.
 
-- #### Poses of All Boxes in Current Layer
-To add pictures
-- #### Poses of Certain Boxes in Current Layer
-To add pictures
+🖼️ *[Insert screenshot or image of the interface highlighting the box here]*
+
+1. **Configure box dimensions**  
+   - You can manually input custom dimensions (length, width, height).  
+   - *Note: The height of the box will determine the starting height of the next layer.*
+
+2. **Box Actions**  
+   - Add a new box  
+   - Delete an existing box  
+   - Jog (move) a box to fine-tune its position  
+   - Rotate the box for better placement
+
+---
+
+### 2.2.3 Layers  
+Use the available layer controls to manage multiple stacking layers:
+
+- **Add** a new layer  
+- **Delete** the current layer  
+- **Duplicate** the current layer  
+- **Go to Previous Layer**  
+- **Go to Next Layer**
+
+### 2.2.4 Send Box Pose  
+Once you've created your boxes and layers, the buttons in this section allow you to **connect to the robot** and **send pose data (Position & Orientation)** for execution.
+
+*[Insert screenshot or image of the interface here]*
+
+---
+
+### 2.2.4.1 Open Connection between PC and UR Cobot  
+This button starts a **TCP/IP server** on your PC, which opens a socket that the robot can connect to.
+
+---
+
+### 2.2.4.2 Send Poses of All Boxes in Current Layer  
+This section includes a dropdown with two options:
+
+1. **Send poses for all boxes in the current layer only**
+2. **Send poses for all boxes across all layers**
+
+---
+
+### 2.2.4.3 Send Poses of Specific Boxes in Current Layer  
+This option allows you to test individual box poses before sending everything.
+
+- Select a **box index** from the dropdown.
+- Choose from the following actions:
+
+1. **Send the pose of the selected box only**
+2. **Send the pose of the selected box and all boxes after it** (on the same layer)
 
 ---
 
 
-## 3. Steps to Use the Application on UR Robot
+## 3. Steps to Use the Application on UR Robot  
+The robot program has been configured for simple setup with just a few required inputs from your end.  
+To get started, you'll need to configure the relevant fields in both the **UR Robot Program** and the **Installation tab**.
 
-### 3.1 Creation of Plane-feature
-To add pictures
+---
 
-### 3.2 Approach and Exit Points
-To add pictures
+### 3.1 Creation of Plane Feature  
+In the **UR Installation tab**, create a new **plane feature** that matches the origin and orientation of your Pallet Sim program.
 
+- The **origin** of this plane should align with `(0, 0)` of the Pallet Sim.
+- The **X and Y axes** should follow the **Right-Hand Rule** based on your physical setup.
+
+This alignment ensures that the robot operates in the same coordinate space as the simulation.
+
+---
+
+### 3.2 Conveyor & Pallet: Approach, Exit, and Pick Points  
+There are two sets of Approach and Exit points that must be taught manually:
+
+1. **Conveyor Pick Point**  
+   - Define the **Pick**, **Approach**, and **Exit** positions for the conveyor.  
+   - These are determined by you based on your layout.
+
+2. **Pallet Approach & Exit Points**  
+   - Define where the robot should move before and after interacting with the pallet. This can be changed to 
+
+
+These positions are critical for smooth motion planning and safe operation.
+
+---
+
+### 3.3 Gripper Actions  
+You will also need to configure how the gripper operates. This can be done using:
+
+- Digital/Analog **I/O signals**  
+- **URCaps** (if you are using a custom or advanced gripper system)
+
+Ensure the gripping logic matches your hardware capabilities.
+
+---
 
 ## 4. Additional Steps
 Reserved 
