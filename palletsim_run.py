@@ -22,7 +22,7 @@ from box import Box
 # IP_ADDRESS = "172.16.103.206"
 
 ## Condition for 
-robot_connected =  False
+robot_connected =  True
 
 PORT = 50000
 # Row / Col editing
@@ -213,6 +213,7 @@ def send_all_pose_to_robot():
     print("Button execute check")
     print(connection_established)
     print(client_connection) 
+    
     if connection_established and client_connection:
         print("established")
         print(curr_allpose_action_dropdown_val)
@@ -253,6 +254,7 @@ def send_all_pose_to_robot():
                     if layer is None:
                         continue
                     for box in layer:
+                        print("Data_send")
                         data_list = []
                         box_id = box.id
                         box_angle = box.angle
@@ -261,7 +263,7 @@ def send_all_pose_to_robot():
                         box_center_x = float(round(box.x + box.width / 2, 2))
                         box_center_y = float(round(box.y + box.length / 2, 2))
 
-                        print(f"Sending pose for box in layer {layer_index}")
+                        print(f"Sending pose for box({box_id}) in layer {layer_index}")
                         print("Total number of Boxes in all layers: " + str(count))
                         data_list.append([
                             count,
@@ -272,11 +274,12 @@ def send_all_pose_to_robot():
                             ((box_height + 20) / 1000),
                             box_layer
                         ])
+                        
+                        print("DATA LIST")
+                        print(data_list)
+                        send_and_wait_for_response(client_connection, data_list)
 
-                    print("DATA LIST")
-                    print(data_list)
-
-                    send_and_wait_for_response(client_connection, data_list)
+                    
 
             except Exception as e:
                 print(f"Error sending data: {str(e)}")
@@ -339,9 +342,9 @@ def no_connection_send_all_pose_to_robot():
 
 def send_selected_pose_to_robot():
     global connection_established, client_connection, curr_index_selection_dropdown_val
-    print("Selected execute check")
+    print("Robot Connection. Selected execute check")
     curr_index_selection_dropdown_val = int(curr_index_selection_dropdown_val)
-
+    
     if connection_established and client_connection:
         if curr_index_action_dropdown_val == 1:
             try:
@@ -596,7 +599,7 @@ def add_box():
     angle = 0
     new_width = int(box_width_entry.get())
     new_length = int(box_length_entry.get())
-    
+
     box_id = len(layers[current_layer]) + 1 # + 1 because it starts from 0 instead of 1
 
     if current_layer > 1:
@@ -609,9 +612,9 @@ def add_box():
                 max_height = 0
             
             new_height = int(box_height_entry.get()) + max_height
-            
+
     else:
-        new_height = 0
+        new_height = int((box_height_entry.get()))
 
     new_box = Box(pallet_width + 5, 10, new_width, new_length, new_height, box_id, angle, current_layer)
     layers[current_layer].append(new_box)
