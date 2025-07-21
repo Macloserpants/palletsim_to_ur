@@ -1,5 +1,6 @@
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk 
+from tkinter.filedialog import asksaveasfilename, askopenfilename
 
 import numpy as np
 
@@ -10,45 +11,44 @@ import threading
 import queue
 import psutil
 
+import json
+
 import matplotlib.pyplot as plt
 import matplotlib.transforms as mtransforms
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 from box import Box
 
-# Testing Purposes
 
-## Temp IP ADDRESS
-# IP_ADDRESS = "172.16.103.206"
-
-## Condition for 
+## Condition for Testing purposes
 robot_connected =  True
 
 PORT = 50000
 # Row / Col editing
 
 # Row
-IP_ADDRESS_1 = 0
-IP_ADDRESS_2 = 1
-PALLET_WIDTH = 2
-PALLET_LENGTH = 3
-PALLET_UPDATE = 4
+SAVE_IMPORT_FILE = 0
+IP_ADDRESS_1 = 1
+IP_ADDRESS_2 = 2
+PALLET_WIDTH = 3
+PALLET_LENGTH = 4
+PALLET_UPDATE = 5
 
-BOX_WIDTH = 5
-BOX_LENGTH = 6
-BOX_HEIGHT = 7
-ADD_DELETE_BOX_ROW = 8
-ROTATE_VALUE = 9
-ROTATE_BOX = 10
+BOX_WIDTH = 6
+BOX_LENGTH = 7
+BOX_HEIGHT = 8
+ADD_DELETE_BOX_ROW = 9
+ROTATE_VALUE = 10
+ROTATE_BOX = 11
 
-JOG_DISTANCE = 9
-JOG_UP_RIGHT_ROW = 10
-JOG_DOWN_LEFT_ROW = 11
+JOG_DISTANCE = 10
+JOG_UP_RIGHT_ROW = 11
+JOG_DOWN_LEFT_ROW = 12
 
-ADD_DELETE_LAYER = 14
-NEXT_PREVIOUS_LAYER = 15
+ADD_DELETE_LAYER = 15
+NEXT_PREVIOUS_LAYER = 16
 
-GRID_LAYOUT = 16
+GRID_LAYOUT = 17
 
 # Column
 COLUMN_0 = 0
@@ -101,10 +101,7 @@ def update_dropdown_ip(event):
     interfaces = list(psutil.net_if_addrs().keys())
     ethernet_interfaces = [ether for ether in interfaces if "Ethernet" in ether]
 
-    # print("dropdown IP test:")
-    # print(interfaces)
     ip_dropdown_selection['values'] = ethernet_interfaces
-    
     ip_address_selection_val = ip_dropdown_selection.get()
 
 def get_ethernet_ip():
@@ -277,9 +274,7 @@ def send_all_pose_to_robot():
                         
                         print("DATA LIST")
                         print(data_list)
-                        send_and_wait_for_response(client_connection, data_list)
-
-                    
+                        send_and_wait_for_response(client_connection, data_list)                  
 
             except Exception as e:
                 print(f"Error sending data: {str(e)}")
@@ -292,18 +287,19 @@ def no_connection_send_all_pose_to_robot():
             for box in layers[current_layer]:
                 print("Layer send check")
                 data_list = []
+                count = len(layers[current_layer])
+
                 box_id = box.id
                 box_angle = box.angle
                 box_height = box.height
                 box_layer = box.layer
                 box_center_x = float(round(box.x + box.width / 2, 2))
                 box_center_y = float(round(box.y + box.length / 2, 2))
-                count = len(layers[current_layer])
-
+                
                 print("Total number of Boxes in this layer: " + str(count))
                 data_list.append([count, box_id, (box_center_x/1000), (box_center_y/1000), box_angle, ((box_height+ 20)/1000), box_layer])
 
-                print("DATA LIST")
+                print("Box_Data_List")
                 print(data_list)
 
     elif curr_allpose_action_dropdown_val == 2:
@@ -437,6 +433,119 @@ def no_connection_send_selected_pose_to_robot():
                     print("DATA LIST")
                     print(data_list)
                     time.sleep(1)
+                     
+### Save and Import
+def save_file():
+    print("Saving current Palletizing template data...")
+    data_list = []
+    box_counter = 0 
+    
+    for i in range(len(layers)): 
+        layer_has_boxes = False
+
+        for box in layers[i] or []:
+            layer_has_boxes = True
+            box_counter += 1
+            box_data = {
+                "layer_has_boxes": True,
+                "box_counter": box_counter,
+                "box_id": box.id,
+                "box_x": box.x,
+                "box_y": box.y,
+                "box_width": box.width,
+                "box_length": box.length,
+                "angle": box.angle,
+                "height_val": box.height,
+                "layer": box.layer   
+            }
+            data_list.append(box_data)
+        
+        if not layer_has_boxes:
+            box_data = {
+                "layer_has_boxes": False,
+                "box_counter": box_counter,
+                "box_id": "NIL",
+                "box_x": "NIL",
+                "box_y": "NIL",
+                "box_width": "NIL",
+                "box_length": "NIL",
+                "angle": "NIL",
+                "height_val": "NIL",
+                "layer": i
+            }
+            data_list.append(box_data)
+    
+    file_path = asksaveasfilename(
+    defaultextension=".json",
+    filetypes=[("JSON files", "*.json"), ("All files", "*.*")],
+    title="Save Palletizing Data As..."
+    )
+    
+    if not file_path:
+        print("Save cancelled.")
+        return
+    
+    with open(file_path, "w") as file:
+        json.dump(data_list, file, indent=4)
+
+    print(f"File saved to {file_path}")
+    
+    
+def import_file():
+    global layers, current_layer
+
+    print("Select file to import")
+    
+    file_path = askopenfilename(
+    title="Select a PalletSim JSON file",
+    filetypes=[("JSON files", "*.json")]
+    )
+
+    if file_path:
+        with open(file_path, "r") as f:
+            data = json.load(f)
+
+        print("Loaded JSON data:")
+        layers = []
+        for entry in data:
+            layer_val = entry["layer"]
+            layer_has_boxes = entry["layer_has_boxes"]
+
+            while len(layers) <= layer_val:
+                layers.append([])
+
+            if layer_has_boxes:
+                # If the layer currently None, replace with empty list
+                if layers[layer_val] is None:
+                    layers[layer_val] = []
+ 
+                box_counter = entry["box_counter"]
+                box_id = entry["box_id"]
+                box_x = entry["box_x"]
+                box_y = entry["box_y"]
+                box_width = entry["box_width"]
+                box_length = entry["box_length"]
+                angle = entry["angle"]
+                height_val = entry["height_val"]
+
+                new_box = Box(box_x, 
+                            box_y,
+                            box_width,
+                            box_length, 
+                            height_val, 
+                            box_id, 
+                            angle, 
+                            layer_val)            
+
+                layers[layer_val].append(new_box)
+                print(layers)
+
+            else:
+                # Keep layer as None if no boxes
+                layers[layer_val] = []
+
+    current_layer = 1
+    update_canvas()
 
 
 def get_rotated_bounds(x, y, width, length, angle):
@@ -540,7 +649,7 @@ def update_canvas():
     draw_pallet_and_boxes(pallet_width, pallet_length, layers[current_layer])
 
     return pallet_width, pallet_length
-
+    
 # Event for Button press
 def on_press(event):
     global dragging_box, offset_x, offset_y, selected_box
@@ -709,6 +818,7 @@ def add_layer():
 
     layers.append([])
     current_layer = len(layers) - 1
+    print(layers)
     update_canvas()
 
 def delete_layer():
@@ -797,9 +907,9 @@ def update_index_dropdown_selection(event):
 #         layer_dropdown_selection.get()
 #     else:
 #         layer_dropdown_selection.set('')  # Clear if not valid
-    
-# IP Address
-# IP_dropdown
+
+### GUI Buttons ###
+
 # Col seperator
 separator = tk.Frame(root, width=1, bg="black", relief='flat')
 separator.grid(row=IP_ADDRESS_1, column=COLUMN_1, rowspan=9, sticky='nse', padx=(0, 0))
@@ -813,6 +923,11 @@ separator.grid(row=JOG_DISTANCE, column=COLUMN_2, columnspan=2, sticky='new', pa
 separator = tk.Frame(root, height=1, bd=0, bg="black", relief='flat')
 separator.grid(row=ADD_DELETE_LAYER, column=COLUMN_0, columnspan=4, sticky='new', pady=(0, 0))
 
+# Button for Save and Import
+ttk.Button(root, text="Save File", command=save_file).grid(row=SAVE_IMPORT_FILE, column=COLUMN_0)  
+ttk.Button(root, text="Import File", command=import_file).grid(row=SAVE_IMPORT_FILE, column=COLUMN_1)  
+
+# Button for IP Address and IP_dropdown
 ttk.Label(root, text="Select the Ethernet Port: ").grid(row=IP_ADDRESS_1, column=COLUMN_0)
 ip_dropdown_selection = ttk.Combobox(root)
 ip_dropdown_selection.grid(row=IP_ADDRESS_1, column=COLUMN_1)
@@ -914,7 +1029,7 @@ ttk.Button(root, text="Jog Left", command=jog_left).grid(row=JOG_DOWN_LEFT_ROW, 
 # ttk.Button(root, text="Flush_all_boxes_left", command=flush_all_boxes_left).grid(row=JOG_DOWN_LEFT_ROW, column=COLUMN_1)
 # ttk.Button(root, text="Flush_all_boxes_bottom", command=flush_all_boxes_bottom).grid(row=JOG_DOWN_LEFT_ROW, column=COLUMN_1)
 
-# Box Rotation
+# Button for Box Rotation
 ttk.Label(root, text="Rotation Value (deg)").grid(row=ROTATE_VALUE, column=COLUMN_2)
 box_angle_entry = tk.Entry(root)
 box_angle_entry.insert(0, "10")
